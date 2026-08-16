@@ -1,0 +1,25 @@
+-- ANALYZE 後(統計あり)。上と同じクエリ
+-- EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM orders WHERE user_id = 42 ORDER BY ordered_at DESC LIMIT 20;
+Limit  (cost=8075.30..8075.32 rows=7 width=129) (actual time=7.274..8.222 rows=3.00 loops=1)
+  Buffers: shared hit=4561 read=954 written=147
+  I/O Timings: shared read=1.410 write=0.302
+  ->  Sort  (cost=8075.30..8075.32 rows=7 width=129) (actual time=7.273..8.220 rows=3.00 loops=1)
+        Sort Key: ordered_at DESC
+        Sort Method: quicksort  Memory: 25kB
+        Buffers: shared hit=4561 read=954 written=147
+        I/O Timings: shared read=1.410 write=0.302
+        ->  Gather  (cost=1000.00..8075.20 rows=7 width=129) (actual time=0.426..8.203 rows=3.00 loops=1)
+              Workers Planned: 2
+              Workers Launched: 2
+              Buffers: shared hit=4558 read=954 written=147
+              I/O Timings: shared read=1.410 write=0.302
+              ->  Parallel Seq Scan on orders  (cost=0.00..7074.50 rows=3 width=129) (actual time=2.149..5.986 rows=1.00 loops=3)
+                    Filter: (user_id = 42)
+                    Rows Removed by Filter: 99999
+                    Buffers: shared hit=4558 read=954 written=147
+                    I/O Timings: shared read=1.410 write=0.302
+Planning:
+  Buffers: shared hit=168
+Planning Time: 0.354 ms
+Execution Time: 8.251 ms
