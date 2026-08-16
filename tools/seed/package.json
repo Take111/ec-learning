@@ -1,0 +1,12 @@
+{
+  "name": "ec-seed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx src/main.ts"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "tsx": "^4.19.0"
+  }
+}
