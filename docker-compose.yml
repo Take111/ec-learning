@@ -1,0 +1,32 @@
+# 学習用 PostgreSQL 18
+#
+# チューニング方針(意図的):
+#   shared_buffers / work_mem などは PostgreSQL のデフォルトのまま。
+#   全データがメモリに載りきらない状態のほうが EXPLAIN の Buffers: shared hit / read の
+#   差が観察できる。チューニング自体を学ぶときに初めて変更する。
+#   前提が変わる箇所: マシンに合わせた本気のチューニングをするなら command に -c を足す。
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: ec-db
+    environment:
+      POSTGRES_USER: ec
+      POSTGRES_PASSWORD: ec # ローカル学習用の固定値(mise.toml の [env] と一致させること)
+      POSTGRES_DB: ec
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql # 18-alpine のデータ配置に合わせる(PG18からVOLUMEの粒度が変更された)
+      - ./data:/data:ro # 生成CSVをコンテナ内 psql の \copy から読むための read-only マウント
+    command:
+      - postgres
+      - -c
+      - track_io_timing=on # EXPLAIN (ANALYZE, BUFFERS) に I/O 時間を出すため。これだけは有効化する
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ec -d ec"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pgdata:
