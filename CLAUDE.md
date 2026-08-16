@@ -1,0 +1,102 @@
+# CLAUDE.md — 架空EC学習プロジェクト
+
+## このプロジェクトは何か
+
+架空のECサイトをフルスタックで構築する**学習プロジェクト**。成果物より学習が目的。
+
+- 主目的: バックエンド構築の学習(実務レベルのSQL・API設計)
+- フロントは適当でよい
+- 100万件規模のデータを生成し、クエリ性能を実測しながら学ぶ
+
+## 進め方のルール(重要)
+
+**完成コードをいきなり渡さないこと。**
+
+- 設計判断が必要な場面では「選択肢 → トレードオフ → 推奨案」を提示し、ユーザー自身に決めさせる
+- ユーザーのゴールは「なぜその設計にしたのか自分の言葉で説明できる状態」になること
+- ユーザーはモバイルエンジニア(iOS/RN/Flutter 6〜7年)。クライアント側の経験は深いので、その視点と対比させると理解が速い
+- 決定した設計には、前提条件をコメントで残す(前提が変わったら設計が変わる箇所を明示)
+
+## 技術スタック
+
+- DB: PostgreSQL 18(Docker Compose、ローカル)
+  - 選定理由: 現時点の最新安定版(19はBeta)。本番先が未定で制約がなく、EOLが最も長い。学習プロジェクトで古いメジャーを選ぶ積極的理由がない
+- API: **Go + pgx + sqlc**。SQLは自分で書き、sqlcで型付き関数を生成(ORM任せにしない)
+- データ生成: TypeScript + @faker-js/faker(jaロケール)で CSV 生成 → `psql \copy` で投入
+  - **INSERTループ禁止**(100万件で時間単位かかる)。IDは生成側で採番(1〜N)し、FK整合も生成側で取る
+- フロント: React Native + Expo(EAS)
+- CI/CD: GitHub Actions
+- ツール・タスク管理: **mise**(`mise.toml`)— Node/Goのバージョン固定、PG*環境変数、タスクランナー(`mise run up` など)を1ファイルに集約。操作の入口はすべて mise タスクにする
+
+## フェーズ構成
+
+- **フェーズA**: Docker + スキーマ適用 + fakerでデータ生成 + 100万件クエリの実測(SQLとTSスクリプトで完結。Goは持ち込まない)
+- **フェーズB**: API設計・実装(Go)。POST /orders の設計は確定済み(下記)
+- **フェーズC**: React Nativeで適当な画面を作り、APIからデータ取得
+- **フェーズD**: 仮のCI/CD(GitHub Actions — lint / test / マイグレーション検証)
+
+## 公開リポジトリ・ドキュメント方針
+
+**このリポジトリは公開する。設計判断はドキュメントとして残す。**
+
+- 設計判断は「何を選んだか」だけでなく「選択肢・トレードオフ・なぜそうしたか」を残す(このCLAUDE.mdの判断表がその実例)
+- 大きな判断は `docs/decisions/` にADR(Architecture Decision Record)形式で追加していく
+- コード内コメントには前提条件を残す(前提が変わったら設計が変わる箇所を明示)
+- READMEは学習プロジェクトであることと各フェーズの学びを外部の読者に伝わる形で書く
+
+## データモデル(確定済み・8テーブル)
+
+users, user_addresses, categories, products, orders, order_items, payments, reviews
+
+詳細は `schema.sql` を参照。カートはあえて作らない(未確定の作業中データで性質が違う。必要になったら議論)。
+
+### モデリングの3原理(このプロジェクトの判断基準)
+
+1. **イベントとリソースを分ける** — orders/order_items/payments/reviews は「起きたコト」、users/products は「存在するモノ」。イベントは原則UPDATEしない
+2. **属性は「何に対して1つ決まるか」で置き場所が決まる** — 迷ったら隠れたエンティティを疑う(例: 配送料は「配送」に対して1つ → 分割配送があるならshipmentsが必要)
+3. **イベントはスナップショットを持つ** — リソースの変更に過去の事実が影響されない(order_items.unit_price_jpy, orders.ship_to_*)
+
+### 確定した設計判断と根拠
+
+| 判断 | 根拠 |
+|---|---|
+| 金額は整数(JPY) | 日本円なので小数不要 |
+| orders.total_jpy を非正規化 | 実務の定番。order_itemsのSUMとの整合性検証クエリ自体が練習になる |
+| 1注文=1配送 | v1のスコープ制限。分割配送はv2でshipmentsテーブルに分離 |
+| 配送先は user_addresses(住所帳)+ ordersへカラムコピー | スナップショット原理。イミュータブルFK方式は「規律で守る」ため不採用 — **仕組みで安全 > 規律で安全** |
+| payments を分離 | 注文と1:N(決済試行ごとに1行、失敗も記録)。返金はマイナス金額行(SUMで実収額) |
+| インデックスはPK/UNIQUE以外まだ張らない | **意図的**。遅さをEXPLAIN ANALYZEで実測してから張るのが学習の核。勝手に張らないこと |
+
+## API設計の3原則(POST /orders で確立済み)
+
+1. **金額はサーバーが決定する** — クライアントはproduct_idとquantityだけ送る。expected_total_jpyは価格改定検知(UX保護)のためで、不一致なら409
+2. **チェックと更新はアトミックに** — 在庫引き当ては `UPDATE products SET stock = stock - $qty WHERE id = $id AND stock >= $qty` で行ロックに任せる。SELECT→UPDATE分離はTOCTOUレースで在庫マイナス事故になる
+3. **リトライは冪等キーで吸収** — `Idempotency-Key` ヘッダ + orders.idempotency_key のUNIQUE制約。重複チェックはSELECT先行ではなくINSERT先行でUNIQUE違反を捕まえる(これもTOCTOU回避)
+
+注文トランザクションの境界は「全部成功か全部失敗か」(業務ルール由来)。
+
+## 想定データ量
+
+| テーブル | 件数 |
+|---|---|
+| users | 100,000 |
+| categories | 50 |
+| products | 50,000 |
+| orders | 300,000 |
+| order_items | **1,200,000** |
+| reviews | 200,000 |
+
+## 次にやること(フェーズA)
+
+1. Docker Compose で PostgreSQL 18 を立てる
+2. schema.sql を適用
+3. TS + @faker-js/faker で CSV 生成(8テーブル分、ID採番とFK整合は生成側)→ `\copy` で投入
+4. インデックスなしで遅いクエリを実測(EXPLAIN ANALYZE):
+   - ユーザーの注文履歴(orders.user_id で Seq Scan になるはず)
+   - 期間指定の売上集計(ordered_at 範囲)
+   - 商品別売上ランキング(order_items JOIN orders)
+   - 都道府県×カテゴリ別売上(4テーブルJOIN)
+   - 平均評価4以上の商品検索(GROUP BY + HAVING)
+5. インデックスを張って before/after を比較(B-tree、複合、部分インデックス)
+6. OFFSET vs カーソルページネーションの比較
+7. その後フェーズB: POST /orders を Go(pgx + sqlc)で実装(設計は確定済み)

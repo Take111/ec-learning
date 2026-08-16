@@ -1,0 +1,55 @@
+# プロジェクトの唯一の入口: ツールバージョン + 環境変数 + タスク
+# フェーズB で go を追加予定(global の 1.25.12 に依存せずここで固定する)
+
+[tools]
+node = "22" # faker / tsx 用。システムの v18 に依存しない
+
+[env]
+# ローカル学習用の固定値。このリポジトリは公開前提なので、あえて平文で置く
+# (本番運用の構成例ではない、という意図を明示するため。秘匿が必要になったら .env + gitignore に移す)
+PGHOST = "localhost"
+PGPORT = "5432"
+PGUSER = "ec"
+PGPASSWORD = "ec"
+PGDATABASE = "ec"
+
+# ---- タスク(フェーズAの進行に合わせて追加していく) ----
+# A-5 で explain を追加
+
+[tasks.load]
+description = "data/のCSVを投入(\\copy → setval → ANALYZE前後のEXPLAIN保存 → 検証)"
+run = "scripts/load.sh"
+
+[tasks.seed]
+description = "8テーブル分のCSVを data/ に生成(シード固定・再現可能)"
+dir = "tools/seed"
+# mise exec を明示する理由: このマシンは複数のNodeマネージャが同居しており、
+# タスク内シェルのPATHでは /usr/local/bin/node (v18) が勝ってしまうため
+run = [
+  "mise exec -- npm install --no-audit --no-fund --loglevel=error",
+  "mise exec -- npm run --silent seed",
+]
+
+[tasks.migrate]
+description = "未適用の連番マイグレーションを順に適用"
+run = "scripts/migrate.sh"
+
+[tasks.schema-dump]
+description = "適用済みスキーマを db/schema.sql に書き出す(schema.sql は生成物)"
+run = "docker compose exec -T db pg_dump -U ec -d ec --schema-only --no-owner --exclude-table=schema_migrations > db/schema.sql"
+
+[tasks.up]
+description = "PostgreSQL を起動してヘルスチェック完了まで待つ"
+run = "docker compose up -d --wait"
+
+[tasks.down]
+description = "PostgreSQL を停止(データ volume は残る)"
+run = "docker compose down"
+
+[tasks.reset]
+description = "データ volume ごと破棄して作り直す(計測のやり直し用)"
+run = "docker compose down -v && docker compose up -d --wait"
+
+[tasks.psql]
+description = "コンテナ内の psql に入る(引数はそのまま psql へ渡る: mise run psql -- -c 'select 1')"
+run = "docker compose exec db psql -U ec -d ec"

@@ -1,0 +1,5 @@
+# 生成CSV(数百MB)。tools/seed で再生成できる(乱数シード固定)ためコミットしない
+data/*.csv
+
+node_modules/
+.DS_Store
