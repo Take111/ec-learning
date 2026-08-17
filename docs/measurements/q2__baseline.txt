@@ -1,0 +1,69 @@
+====================================================================
+query: q2    label: baseline
+====================================================================
+-- q2: 期間指定の売上集計(直近30日・日別)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - 直近30日間の注文を対象に、日別の「注文件数」と「売上合計(total_jpy)」を出す
+--   - cancelled は売上に含めない
+--   - 日付昇順で並べる
+--
+-- ■ ヒント
+--   - 「日別」への丸め: date_trunc('day', ordered_at)
+--   - 「直近30日」の基準は now() でよい(データは2026-08-17直前まで入っている)
+--
+-- ■ 観察ポイント
+--   - ordered_at の範囲条件が Seq Scan + Filter になること
+--   - 推定行数と実行行数のズレ(直近偏重の分布をプランナがどう見積もるか)
+--   - 集計(GROUP BY)が HashAggregate と Sort のどちらになるか
+SELECT
+    date_trunc('day', ordered_at, 'Asia/Tokyo') AS order_date,
+    COUNT(*) AS order_count,
+    SUM(total_jpy) AS total_sales
+FROM orders
+WHERE ordered_at >= now() - interval '30 days'
+  AND status != 'cancelled'
+GROUP BY order_date
+ORDER BY order_date ASC;
+
+-------- 実行1回目(キャッシュが冷えていれば shared read が出る) --------
+Sort  (cost=17417.39..17561.84 rows=57780 width=24) (actual time=55.236..55.237 rows=31.00 loops=1)
+  Sort Key: (date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text))
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=4872 read=643
+  I/O Timings: shared read=0.295
+  ->  HashAggregate  (cost=12125.24..12847.49 rows=57780 width=24) (actual time=55.075..55.216 rows=31.00 loops=1)
+        Group Key: date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text)
+        Batches: 1  Memory Usage: 1057kB
+        Buffers: shared hit=4869 read=643
+        I/O Timings: shared read=0.295
+        ->  Seq Scan on orders  (cost=0.00..11665.31 rows=61324 width=12) (actual time=33.789..51.041 rows=61752.00 loops=1)
+              Filter: ((status <> 'cancelled'::text) AND (ordered_at >= (now() - '30 days'::interval)))
+              Rows Removed by Filter: 238248
+              Buffers: shared hit=4869 read=643
+              I/O Timings: shared read=0.295
+Planning:
+  Buffers: shared hit=128
+Planning Time: 0.464 ms
+Execution Time: 55.486 ms
+
+-------- 実行2回目(キャッシュ済み。実測値はこちらを基準にする) --------
+Sort  (cost=17417.39..17561.84 rows=57780 width=24) (actual time=44.322..44.323 rows=31.00 loops=1)
+  Sort Key: (date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text))
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=4966 read=549
+  I/O Timings: shared read=0.208
+  ->  HashAggregate  (cost=12125.24..12847.49 rows=57780 width=24) (actual time=44.187..44.309 rows=31.00 loops=1)
+        Group Key: date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text)
+        Batches: 1  Memory Usage: 1057kB
+        Buffers: shared hit=4963 read=549
+        I/O Timings: shared read=0.208
+        ->  Seq Scan on orders  (cost=0.00..11665.31 rows=61324 width=12) (actual time=25.696..40.668 rows=61752.00 loops=1)
+              Filter: ((status <> 'cancelled'::text) AND (ordered_at >= (now() - '30 days'::interval)))
+              Rows Removed by Filter: 238248
+              Buffers: shared hit=4963 read=549
+              I/O Timings: shared read=0.208
+Planning:
+  Buffers: shared hit=128
+Planning Time: 0.340 ms
+Execution Time: 44.517 ms

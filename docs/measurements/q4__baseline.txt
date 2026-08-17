@@ -1,0 +1,194 @@
+====================================================================
+query: q4    label: baseline
+====================================================================
+-- q4: 都道府県 × 大分類カテゴリ別売上(全期間)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - 配送先都道府県(orders.ship_to_prefecture)× 大分類カテゴリごとの売上合計を出す
+--   - cancelled は除外
+--   - 「大分類」= categories.parent_id IS NULL の階層。商品が属するのは小分類なので
+--     親への持ち上げが必要
+--   - 売上合計の降順、上位30行
+--
+-- ■ ヒント
+--   - orders → order_items → products → categories(小分類)→ categories(大分類)
+--     で、categories は2回登場する(自己結合)。階層が2段固定なので再帰CTEは不要
+--
+-- ■ 観察ポイント
+--   - 4テーブル(実質5結合)で JOIN 順序をプランナがどう組むか(EXPLAINの木構造を下から読む)
+--   - GROUP BY のキーが2列(47都道府県 × 10カテゴリ = 最大470グループ)のときの集計方式
+--   - どのテーブルのスキャンが実行時間の支配項か(actual time をノードごとに見る)
+SELECT
+    o.ship_to_prefecture,
+    c_parent.name AS category_name,
+    SUM(oi.quantity * oi.unit_price_jpy) AS total_sales
+FROM orders AS o
+JOIN order_items AS oi ON o.id = oi.order_id
+JOIN products AS p ON oi.product_id = p.id
+JOIN categories AS c_child ON p.category_id = c_child.id
+JOIN categories AS c_parent ON c_child.parent_id = c_parent.id
+WHERE o.status != 'cancelled'
+GROUP BY o.ship_to_prefecture, c_parent.name
+ORDER BY total_sales DESC
+LIMIT 30;
+
+-------- 実行1回目(キャッシュが冷えていれば shared read が出る) --------
+Limit  (cost=36384.52..36384.59 rows=30 width=35) (actual time=236.034..236.764 rows=30.00 loops=1)
+  Buffers: shared hit=3577 read=12088
+  I/O Timings: shared read=0.778
+  ->  Sort  (cost=36384.52..36390.39 rows=2350 width=35) (actual time=236.033..236.761 rows=30.00 loops=1)
+        Sort Key: (sum((oi.quantity * oi.unit_price_jpy))) DESC
+        Sort Method: top-N heapsort  Memory: 29kB
+        Buffers: shared hit=3577 read=12088
+        I/O Timings: shared read=0.778
+        ->  Finalize GroupAggregate  (cost=35592.44..36315.11 rows=2350 width=35) (actual time=235.682..236.713 rows=470.00 loops=1)
+              Group Key: o.ship_to_prefecture, c_parent.name
+              Buffers: shared hit=3574 read=12088
+              I/O Timings: shared read=0.778
+              ->  Gather Merge  (cost=35592.44..36249.31 rows=5640 width=35) (actual time=235.677..236.583 rows=1410.00 loops=1)
+                    Workers Planned: 2
+                    Workers Launched: 2
+                    Buffers: shared hit=3574 read=12088
+                    I/O Timings: shared read=0.778
+                    ->  Sort  (cost=34592.42..34598.29 rows=2350 width=35) (actual time=233.834..233.850 rows=470.00 loops=3)
+                          Sort Key: o.ship_to_prefecture, c_parent.name
+                          Sort Method: quicksort  Memory: 52kB
+                          Buffers: shared hit=3574 read=12088
+                          I/O Timings: shared read=0.778
+                          Worker 0:  Sort Method: quicksort  Memory: 52kB
+                          Worker 1:  Sort Method: quicksort  Memory: 52kB
+                          ->  Partial HashAggregate  (cost=34437.33..34460.83 rows=2350 width=35) (actual time=233.573..233.619 rows=470.00 loops=3)
+                                Group Key: o.ship_to_prefecture, c_parent.name
+                                Batches: 1  Memory Usage: 121kB
+                                Buffers: shared hit=3558 read=12088
+                                I/O Timings: shared read=0.778
+                                Worker 0:  Batches: 1  Memory Usage: 121kB
+                                Worker 1:  Batches: 1  Memory Usage: 121kB
+                                ->  Hash Join  (cost=10534.17..29644.83 rows=479250 width=35) (actual time=30.110..189.957 rows=383350.00 loops=3)
+                                      Hash Cond: (c_child.parent_id = c_parent.id)
+                                      Buffers: shared hit=3558 read=12088
+                                      I/O Timings: shared read=0.778
+                                      ->  Hash Join  (cost=10532.04..28299.37 rows=479250 width=26) (actual time=30.084..161.906 rows=383350.00 loops=3)
+                                            Hash Cond: (p.category_id = c_child.id)
+                                            Buffers: shared hit=3555 read=12088
+                                            I/O Timings: shared read=0.778
+                                            ->  Parallel Hash Join  (cost=10529.92..26932.58 rows=479250 width=26) (actual time=30.057..133.188 rows=383350.00 loops=3)
+                                                  Hash Cond: (oi.product_id = p.id)
+                                                  Buffers: shared hit=3552 read=12088
+                                                  I/O Timings: shared read=0.778
+                                                  ->  Parallel Hash Join  (cost=8572.15..23716.67 rows=479250 width=26) (actual time=26.537..88.201 rows=383350.00 loops=3)
+                                                        Hash Cond: (oi.order_id = o.id)
+                                                        Buffers: shared hit=2256 read=12088
+                                                        I/O Timings: shared read=0.778
+                                                        ->  Parallel Seq Scan on order_items oi  (cost=0.00..13832.00 rows=500000 width=24) (actual time=0.060..14.378 rows=400000.00 loops=3)
+                                                              Buffers: shared hit=1128 read=7704
+                                                              I/O Timings: shared read=0.387
+                                                        ->  Parallel Hash  (cost=7074.50..7074.50 rows=119812 width=18) (actual time=26.133..26.134 rows=95873.33 loops=3)
+                                                              Buckets: 524288  Batches: 1  Memory Usage: 19904kB
+                                                              Buffers: shared hit=1128 read=4384
+                                                              I/O Timings: shared read=0.391
+                                                              ->  Parallel Seq Scan on orders o  (cost=0.00..7074.50 rows=119812 width=18) (actual time=0.079..11.676 rows=95873.33 loops=3)
+                                                                    Filter: (status <> 'cancelled'::text)
+                                                                    Rows Removed by Filter: 4127
+                                                                    Buffers: shared hit=1128 read=4384
+                                                                    I/O Timings: shared read=0.391
+                                                  ->  Parallel Hash  (cost=1590.12..1590.12 rows=29412 width=16) (actual time=3.435..3.435 rows=16666.67 loops=3)
+                                                        Buckets: 65536  Batches: 1  Memory Usage: 2912kB
+                                                        Buffers: shared hit=1296
+                                                        ->  Parallel Seq Scan on products p  (cost=0.00..1590.12 rows=29412 width=16) (actual time=0.003..1.652 rows=16666.67 loops=3)
+                                                              Buffers: shared hit=1296
+                                            ->  Hash  (cost=1.50..1.50 rows=50 width=16) (actual time=0.013..0.014 rows=50.00 loops=3)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                                  Buffers: shared hit=3
+                                                  ->  Seq Scan on categories c_child  (cost=0.00..1.50 rows=50 width=16) (actual time=0.002..0.005 rows=50.00 loops=3)
+                                                        Buffers: shared hit=3
+                                      ->  Hash  (cost=1.50..1.50 rows=50 width=25) (actual time=0.020..0.020 rows=50.00 loops=3)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                            Buffers: shared hit=3
+                                            ->  Seq Scan on categories c_parent  (cost=0.00..1.50 rows=50 width=25) (actual time=0.007..0.010 rows=50.00 loops=3)
+                                                  Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=256 read=4
+  I/O Timings: shared read=1.608
+Planning Time: 2.764 ms
+Execution Time: 236.871 ms
+
+-------- 実行2回目(キャッシュ済み。実測値はこちらを基準にする) --------
+Limit  (cost=36384.52..36384.59 rows=30 width=35) (actual time=216.398..217.133 rows=30.00 loops=1)
+  Buffers: shared hit=4141 read=11524
+  I/O Timings: shared read=0.745
+  ->  Sort  (cost=36384.52..36390.39 rows=2350 width=35) (actual time=216.395..217.128 rows=30.00 loops=1)
+        Sort Key: (sum((oi.quantity * oi.unit_price_jpy))) DESC
+        Sort Method: top-N heapsort  Memory: 29kB
+        Buffers: shared hit=4141 read=11524
+        I/O Timings: shared read=0.745
+        ->  Finalize GroupAggregate  (cost=35592.44..36315.11 rows=2350 width=35) (actual time=216.047..217.083 rows=470.00 loops=1)
+              Group Key: o.ship_to_prefecture, c_parent.name
+              Buffers: shared hit=4138 read=11524
+              I/O Timings: shared read=0.745
+              ->  Gather Merge  (cost=35592.44..36249.31 rows=5640 width=35) (actual time=216.042..216.955 rows=1410.00 loops=1)
+                    Workers Planned: 2
+                    Workers Launched: 2
+                    Buffers: shared hit=4138 read=11524
+                    I/O Timings: shared read=0.745
+                    ->  Sort  (cost=34592.42..34598.29 rows=2350 width=35) (actual time=214.524..214.539 rows=470.00 loops=3)
+                          Sort Key: o.ship_to_prefecture, c_parent.name
+                          Sort Method: quicksort  Memory: 52kB
+                          Buffers: shared hit=4138 read=11524
+                          I/O Timings: shared read=0.745
+                          Worker 0:  Sort Method: quicksort  Memory: 52kB
+                          Worker 1:  Sort Method: quicksort  Memory: 52kB
+                          ->  Partial HashAggregate  (cost=34437.33..34460.83 rows=2350 width=35) (actual time=214.268..214.311 rows=470.00 loops=3)
+                                Group Key: o.ship_to_prefecture, c_parent.name
+                                Batches: 1  Memory Usage: 121kB
+                                Buffers: shared hit=4122 read=11524
+                                I/O Timings: shared read=0.745
+                                Worker 0:  Batches: 1  Memory Usage: 121kB
+                                Worker 1:  Batches: 1  Memory Usage: 121kB
+                                ->  Hash Join  (cost=10534.17..29644.83 rows=479250 width=35) (actual time=21.207..171.768 rows=383350.00 loops=3)
+                                      Hash Cond: (c_child.parent_id = c_parent.id)
+                                      Buffers: shared hit=4122 read=11524
+                                      I/O Timings: shared read=0.745
+                                      ->  Hash Join  (cost=10532.04..28299.37 rows=479250 width=26) (actual time=21.188..144.062 rows=383350.00 loops=3)
+                                            Hash Cond: (p.category_id = c_child.id)
+                                            Buffers: shared hit=4119 read=11524
+                                            I/O Timings: shared read=0.745
+                                            ->  Parallel Hash Join  (cost=10529.92..26932.58 rows=479250 width=26) (actual time=21.173..115.931 rows=383350.00 loops=3)
+                                                  Hash Cond: (oi.product_id = p.id)
+                                                  Buffers: shared hit=4116 read=11524
+                                                  I/O Timings: shared read=0.745
+                                                  ->  Parallel Hash Join  (cost=8572.15..23716.67 rows=479250 width=26) (actual time=18.674..75.325 rows=383350.00 loops=3)
+                                                        Hash Cond: (oi.order_id = o.id)
+                                                        Buffers: shared hit=2820 read=11524
+                                                        I/O Timings: shared read=0.745
+                                                        ->  Parallel Seq Scan on order_items oi  (cost=0.00..13832.00 rows=500000 width=24) (actual time=0.058..13.031 rows=400000.00 loops=3)
+                                                              Buffers: shared hit=1410 read=7422
+                                                              I/O Timings: shared read=0.324
+                                                        ->  Parallel Hash  (cost=7074.50..7074.50 rows=119812 width=18) (actual time=18.376..18.377 rows=95873.33 loops=3)
+                                                              Buckets: 524288  Batches: 1  Memory Usage: 19904kB
+                                                              Buffers: shared hit=1410 read=4102
+                                                              I/O Timings: shared read=0.422
+                                                              ->  Parallel Seq Scan on orders o  (cost=0.00..7074.50 rows=119812 width=18) (actual time=0.073..8.863 rows=95873.33 loops=3)
+                                                                    Filter: (status <> 'cancelled'::text)
+                                                                    Rows Removed by Filter: 4127
+                                                                    Buffers: shared hit=1410 read=4102
+                                                                    I/O Timings: shared read=0.422
+                                                  ->  Parallel Hash  (cost=1590.12..1590.12 rows=29412 width=16) (actual time=2.427..2.427 rows=16666.67 loops=3)
+                                                        Buckets: 65536  Batches: 1  Memory Usage: 2912kB
+                                                        Buffers: shared hit=1296
+                                                        ->  Parallel Seq Scan on products p  (cost=0.00..1590.12 rows=29412 width=16) (actual time=0.002..1.245 rows=16666.67 loops=3)
+                                                              Buffers: shared hit=1296
+                                            ->  Hash  (cost=1.50..1.50 rows=50 width=16) (actual time=0.008..0.009 rows=50.00 loops=3)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                                  Buffers: shared hit=3
+                                                  ->  Seq Scan on categories c_child  (cost=0.00..1.50 rows=50 width=16) (actual time=0.001..0.003 rows=50.00 loops=3)
+                                                        Buffers: shared hit=3
+                                      ->  Hash  (cost=1.50..1.50 rows=50 width=25) (actual time=0.014..0.014 rows=50.00 loops=3)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                            Buffers: shared hit=3
+                                            ->  Seq Scan on categories c_parent  (cost=0.00..1.50 rows=50 width=25) (actual time=0.005..0.007 rows=50.00 loops=3)
+                                                  Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=260
+Planning Time: 0.752 ms
+Execution Time: 217.237 ms
