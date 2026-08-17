@@ -13,8 +13,11 @@ PGUSER = "ec"
 PGPASSWORD = "ec"
 PGDATABASE = "ec"
 
-# ---- タスク(フェーズAの進行に合わせて追加していく) ----
-# A-5 で explain を追加
+# ---- タスク ----
+
+[tasks.explain]
+description = "db/queries/<name>.sql を EXPLAIN ANALYZE して docs/measurements/ に保存(例: mise run explain -- q1 baseline)"
+run = "scripts/explain.sh"
 
 [tasks.load]
 description = "data/のCSVを投入(\\copy → setval → ANALYZE前後のEXPLAIN保存 → 検証)"
