@@ -1,0 +1,61 @@
+====================================================================
+query: q1    label: idx-user-id
+====================================================================
+-- q1: 特定ユーザーの注文履歴(最新20件)
+--
+-- 実務での位置づけ: マイページの注文履歴画面。EC で最も叩かれるクエリの一つ
+-- 予想: orders.user_id にインデックスがないので、30万行の Seq Scan +
+--       全件ソートになるはず。LIMIT 20 なのに 30万行触るのが問題の本質
+--
+-- user_id = 78872 はこのデータ最多の 2,936 件を持つヘビーユーザー。
+-- 一般ユーザー(例: user_id = 42、3件)と実行計画がどう違うかも後で比較する
+SELECT id, status, total_jpy, ordered_at
+FROM orders
+WHERE user_id = 78872
+ORDER BY ordered_at DESC
+LIMIT 20;
+
+-------- 実行1回目(キャッシュが冷えていれば shared read が出る) --------
+Limit  (cost=4835.45..4835.50 rows=20 width=29) (actual time=2.685..2.687 rows=20.00 loops=1)
+  Buffers: shared hit=742 read=826
+  I/O Timings: shared read=0.279
+  ->  Sort  (cost=4835.45..4842.50 rows=2820 width=29) (actual time=2.684..2.685 rows=20.00 loops=1)
+        Sort Key: ordered_at DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=742 read=826
+        I/O Timings: shared read=0.279
+        ->  Bitmap Heap Scan on orders  (cost=42.28..4760.41 rows=2820 width=29) (actual time=0.371..2.377 rows=2936.00 loops=1)
+              Recheck Cond: (user_id = 78872)
+              Heap Blocks: exact=1556
+              Buffers: shared hit=739 read=826
+              I/O Timings: shared read=0.279
+              ->  Bitmap Index Scan on idx_orders_user_id  (cost=0.00..41.57 rows=2820 width=0) (actual time=0.168..0.169 rows=2936.00 loops=1)
+                    Index Cond: (user_id = 78872)
+                    Index Searches: 1
+                    Buffers: shared hit=3 read=6
+                    I/O Timings: shared read=0.017
+Planning:
+  Buffers: shared hit=136 read=1
+  I/O Timings: shared read=0.014
+Planning Time: 0.369 ms
+Execution Time: 2.719 ms
+
+-------- 実行2回目(キャッシュ済み。実測値はこちらを基準にする) --------
+Limit  (cost=4835.45..4835.50 rows=20 width=29) (actual time=1.881..1.883 rows=20.00 loops=1)
+  Buffers: shared hit=1568
+  ->  Sort  (cost=4835.45..4842.50 rows=2820 width=29) (actual time=1.881..1.881 rows=20.00 loops=1)
+        Sort Key: ordered_at DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=1568
+        ->  Bitmap Heap Scan on orders  (cost=42.28..4760.41 rows=2820 width=29) (actual time=0.255..1.560 rows=2936.00 loops=1)
+              Recheck Cond: (user_id = 78872)
+              Heap Blocks: exact=1556
+              Buffers: shared hit=1565
+              ->  Bitmap Index Scan on idx_orders_user_id  (cost=0.00..41.57 rows=2820 width=0) (actual time=0.142..0.142 rows=2936.00 loops=1)
+                    Index Cond: (user_id = 78872)
+                    Index Searches: 1
+                    Buffers: shared hit=9
+Planning:
+  Buffers: shared hit=137
+Planning Time: 0.354 ms
+Execution Time: 1.930 ms

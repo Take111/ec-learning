@@ -1,0 +1,23 @@
+-- 004: idx_orders_user_id(002)を削除 — プレフィックス冗長のため
+--
+-- ■ 要件(この下に SQL を書く)
+--   - 002 で張った idx_orders_user_id を削除する
+--
+-- ■ この判断の根拠(コメントで残す)
+--   - 003 の (user_id, ordered_at) は先頭列 user_id だけの検索にも使える(プレフィックス規則)。
+--     002 にできて 003 にできないことはなく、q1 の実測でもプランナは 003 を選んだ
+--   - 残すコスト: INSERT ごとに両方の木を更新する書き込み増幅 + 3.7MB
+--   - 002 を張った→冗長と確認した→落とした、という流れ自体を履歴として残すため
+--     002 を書き換えるのではなく 004 で落とす
+--
+-- ■ 実務との差分(前提が変わる箇所)
+--   - 本番では落とす前に pg_stat_user_indexes.idx_scan で「本当に未使用か」を確認する。
+--     ここでは全クエリが手元にあるので省略
+--   - 本番の DROP INDEX はロックを取るので CONCURRENTLY を使うのが作法。
+--     ただし CONCURRENTLY はトランザクション内で実行できないため、
+--     migrate.sh(--single-transaction)では扱えない — A-2 で残した注記の再来
+--
+-- ■ 観察ポイント(適用後)
+--   - mise run explain -- q1 idx-composite-only で結果が idx-composite と同一か(退行なし確認)
+DROP INDEX idx_orders_user_id;
+

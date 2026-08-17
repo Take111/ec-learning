@@ -1,0 +1,24 @@
+-- 003: orders (user_id, ordered_at) 複合インデックス(q1 の本命)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - orders に (user_id, ordered_at) の複合 B-tree インデックスを張る
+--   - 対象クエリ: q1。002 の単一列では「全行回収 + Sort」が残った(Buffers 1,568)
+--
+-- ■ この設計の前提(コメントで残す判断)
+--   - 列順は (user_id, ordered_at)。等値条件の列が先、範囲/並び順の列が後
+--     (逆順 (ordered_at, user_id) では user_id の区画がまとまらず q1 に効かない)
+--   - DESC は付けない。先頭列が等値の q1 では Index Scan Backward で代用できる。
+--     前提が変わる箇所: 方向が混在する ORDER BY(例: user_id ASC, ordered_at DESC を
+--     複数ユーザー横断で)が必要になったら DESC 付きの再検討が要る
+--   - 適用後、002 の idx_orders_user_id はプレフィックス冗長になる → 次で議論
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後: mise run explain -- q1 idx-composite)
+--   - Sort ノードが消えるか(Index Scan Backward が出るか)
+--   - Bitmap Heap Scan の rows=2936 が rows=20 になるか(LIMIT が読む量に効く)
+--   - Buffers 1,568 → 25前後 まで落ちるか
+--   - プランナは 002 と 003 のどちらを選ぶか(両方存在する状態で)
+CREATE INDEX idx_orders_user_id_ordered_at ON orders(user_id, ordered_at);
+

@@ -1,0 +1,19 @@
+-- 002: orders.user_id 単一列インデックス(q1 の中間実験)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - orders.user_id に単一列の B-tree インデックスを張る
+--   - 対象クエリ: q1(ユーザーの注文履歴)。baseline は 5,512ページの Parallel Seq Scan
+--
+-- ■ このマイグレーションの位置づけ(前提コメント)
+--   - 最終形は 003 の複合インデックスの予定。単一列を先に張るのは
+--     「所在は分かるがソートは残る」という中間状態を観察するため(学習目的)
+--   - 003 適用後にこのインデックスはプレフィックス冗長になる見込み → 004 で議論
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後: mise run explain -- q1 idx-user-id)
+--   - プランが Seq Scan から何に変わるか(Index Scan? Bitmap Heap Scan?)
+--   - Buffers はどこまで減るか(2,936行の取得 + Sort は残っているはず)
+--   - ヘビーユーザー(78872)と一般ユーザー(42)でプランは同じか
+CREATE INDEX idx_orders_user_id ON orders(user_id);

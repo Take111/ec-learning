@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OjEq9gPjhWjHrQbkZbgpCyM7sHwUCUyqTR2mCregqdegogp8QAa1dj2Y3dje1XF
+\restrict x3Uc3m8JgdjRHeEb0ZCsIlJqQBMjnNIf92orWdqYkcaruWU2uBdc7OlRueVWmJB
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -349,6 +349,13 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: idx_orders_user_id_ordered_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_orders_user_id_ordered_at ON public.orders USING btree (user_id, ordered_at);
+
+
+--
 -- Name: categories categories_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -424,5 +431,5 @@ ALTER TABLE ONLY public.user_addresses
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OjEq9gPjhWjHrQbkZbgpCyM7sHwUCUyqTR2mCregqdegogp8QAa1dj2Y3dje1XF
+\unrestrict x3Uc3m8JgdjRHeEb0ZCsIlJqQBMjnNIf92orWdqYkcaruWU2uBdc7OlRueVWmJB
 
