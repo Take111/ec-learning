@@ -28,6 +28,8 @@
   - **INSERTループ禁止**(100万件で時間単位かかる)。IDは生成側で採番(1〜N)し、FK整合も生成側で取る
 - フロント: React Native + Expo(EAS)。Expo Router / TanStack Query + zustand。
   画面は5本(一覧・詳細・カート[ローカル状態のみ]・注文確定・履歴)
+  - コンポーネント規約: `components/<name>/<name>.tsx` のディレクトリ単位で作る
+    (`<name>.web.tsx` などプラットフォーム分岐ファイルを同居させる余地のため)
 - CI/CD: GitHub Actions
 - ツール・タスク管理: **mise**(`mise.toml`)— Node/Goのバージョン固定、PG*環境変数、タスクランナー(`mise run up` など)を1ファイルに集約。操作の入口はすべて mise タスクにする
 
