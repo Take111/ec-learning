@@ -12,8 +12,8 @@ sqlc = "latest"
 # mise exec は直接呼ぶコマンド(node等)しか差し替えず、pnpm/npx が spawn する子プロセスは
 # PATH 解決で v18 に落ちる。そのため node を使うタスクは PATH="$EC_TOOL_PATH:$PATH" を前置する。
 # ([env] の PATH や _.path での前置は、このマシンの mise 2026.7.7 では効かないことを確認済み)
-# 前提が変わる箇所: [tools] の node/pnpm のバージョンを変えたらこのパスも連動して変える
-EC_TOOL_PATH = "{{env.HOME}}/.local/share/mise/installs/node/22/bin:{{env.HOME}}/.local/share/mise/installs/pnpm/10"
+# shims を指すことで [tools] のバージョン変更に自動追従する(バージョンをパスに複製しない)
+EC_TOOL_PATH = "{{env.HOME}}/.local/share/mise/shims"
 
 # ローカル学習用の固定値。このリポジトリは公開前提なので、あえて平文で置く
 # (本番運用の構成例ではない、という意図を明示するため。秘匿が必要になったら .env + gitignore に移す)
@@ -36,11 +36,9 @@ run = "scripts/load.sh"
 [tasks.seed]
 description = "8テーブル分のCSVを data/ に生成(シード固定・再現可能)"
 dir = "tools/seed"
-# mise exec を明示する理由: このマシンは複数のNodeマネージャが同居しており、
-# タスク内シェルのPATHでは /usr/local/bin/node (v18) が勝ってしまうため
 run = [
-  "mise exec -- npm install --no-audit --no-fund --loglevel=error",
-  "mise exec -- npm run --silent seed",
+  'PATH="$EC_TOOL_PATH:$PATH" npm install --no-audit --no-fund --loglevel=error',
+  'PATH="$EC_TOOL_PATH:$PATH" npm run --silent seed',
 ]
 
 [tasks.migrate]
@@ -92,10 +90,12 @@ description = "Expo 開発サーバーを起動(引数はそのまま expo start
 dir = "mobile"
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm start'
 
+[tasks.mobile-prebuild]
+description = "ネイティブプロジェクトを生成(CNG: ios/android は生成物で git 管理外)"
+dir = "mobile"
+run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild'
+
 [tasks.mobile-check]
 description = "mobile/ の型チェックと lint"
 dir = "mobile"
-run = [
-  'PATH="$EC_TOOL_PATH:$PATH" pnpm exec tsc --noEmit',
-  'PATH="$EC_TOOL_PATH:$PATH" pnpm exec expo lint',
-]
+run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run check'
