@@ -1,0 +1,27 @@
+-- 006: orders.ordered_at に BRIN インデックス(005 B-tree との比較実験)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - orders.ordered_at に BRIN インデックスを張る
+--   - 構文: CREATE INDEX <名前> ON <テーブル> USING brin (<列>);
+--     (USING を省略すると B-tree になる。アクセスメソッドの指定がこの実験の主役)
+--   - 名前は brin_ が分かる形に(例: idx_orders_ordered_at_brin)
+--
+-- ■ この実験の前提(コメントで残す判断)
+--   - BRIN は「128ページごとの min/max メモ」。行単位の情報を持たない
+--   - correlation ≈ 1 のときだけ有効(かたまりの min/max 範囲が狭く保たれるため)。
+--     前提が変わる箇所: UPDATE や乱順 INSERT で相関が崩れると、各かたまりの
+--     min/max が広がり「どこも読み飛ばせない」置物になる
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後)
+--   - サイズ比較: pg_relation_size で 005 B-tree(想定 数MB)と BRIN(想定 数十KB)
+--   - 005 と 006 が両方ある状態で q2 を流すと、プランナはどちらを選ぶか
+--     (mise run explain -- q2 btree-vs-brin)
+--   - 005 を落として BRIN だけにしたときのプラン形: Bitmap Heap Scan +
+--     Recheck になるはず(BRIN は「候補のかたまり」しか分からないので
+--     行の再チェックが必須 — lossy が構造的に前提のインデックス)
+--   - その状態の Buffers / 実行時間は B-tree とどれだけ差があるか
+CREATE INDEX brin_orders_ordered_at ON orders USING brin(ordered_at);
+

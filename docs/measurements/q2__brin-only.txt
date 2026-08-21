@@ -1,0 +1,82 @@
+====================================================================
+query: q2    label: brin-only
+====================================================================
+-- q2: 期間指定の売上集計(直近30日・日別)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - 直近30日間の注文を対象に、日別の「注文件数」と「売上合計(total_jpy)」を出す
+--   - cancelled は売上に含めない
+--   - 日付昇順で並べる
+--
+-- ■ ヒント
+--   - 「日別」への丸め: date_trunc('day', ordered_at)
+--   - 「直近30日」の基準は now() でよい(データは2026-08-17直前まで入っている)
+--
+-- ■ 観察ポイント
+--   - ordered_at の範囲条件が Seq Scan + Filter になること
+--   - 推定行数と実行行数のズレ(直近偏重の分布をプランナがどう見積もるか)
+--   - 集計(GROUP BY)が HashAggregate と Sort のどちらになるか
+SELECT
+    date_trunc('day', ordered_at, 'Asia/Tokyo') AS order_date,
+    COUNT(*) AS order_count,
+    SUM(total_jpy) AS total_sales
+FROM orders
+WHERE ordered_at >= now() - interval '30 days'
+  AND status != 'cancelled'
+GROUP BY order_date
+ORDER BY order_date ASC;
+
+-------- 実行1回目(キャッシュが冷えていれば shared read が出る) --------
+Sort  (cost=12225.72..12360.03 rows=53724 width=24) (actual time=25.454..25.456 rows=27.00 loops=1)
+  Sort Key: (date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text))
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=5 read=1155
+  I/O Timings: shared read=1.245
+  ->  HashAggregate  (cost=7333.27..8004.82 rows=53724 width=24) (actual time=25.274..25.434 rows=27.00 loops=1)
+        Group Key: date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text)
+        Batches: 1  Memory Usage: 1057kB
+        Buffers: shared hit=2 read=1155
+        I/O Timings: shared read=1.245
+        ->  Bitmap Heap Scan on orders  (cost=26.48..6907.64 rows=56751 width=12) (actual time=2.012..20.985 rows=57048.00 loops=1)
+              Recheck Cond: (ordered_at >= (now() - '30 days'::interval))
+              Rows Removed by Index Recheck: 1007
+              Filter: (status <> 'cancelled'::text)
+              Rows Removed by Filter: 2883
+              Heap Blocks: lossy=1152
+              Buffers: shared hit=2 read=1155
+              I/O Timings: shared read=1.245
+              ->  Bitmap Index Scan on brin_orders_ordered_at  (cost=0.00..12.29 rows=61364 width=0) (actual time=0.229..0.229 rows=11520.00 loops=1)
+                    Index Cond: (ordered_at >= (now() - '30 days'::interval))
+                    Index Searches: 1
+                    Buffers: shared hit=2 read=3
+                    I/O Timings: shared read=0.192
+Planning:
+  Buffers: shared hit=159 read=18 dirtied=1
+  I/O Timings: shared read=2.044
+Planning Time: 3.016 ms
+Execution Time: 25.667 ms
+
+-------- 実行2回目(キャッシュ済み。実測値はこちらを基準にする) --------
+Sort  (cost=12225.72..12360.03 rows=53724 width=24) (actual time=21.521..21.522 rows=27.00 loops=1)
+  Sort Key: (date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text))
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=1160
+  ->  HashAggregate  (cost=7333.27..8004.82 rows=53724 width=24) (actual time=21.349..21.500 rows=27.00 loops=1)
+        Group Key: date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text)
+        Batches: 1  Memory Usage: 1057kB
+        Buffers: shared hit=1157
+        ->  Bitmap Heap Scan on orders  (cost=26.48..6907.64 rows=56751 width=12) (actual time=0.224..17.480 rows=57048.00 loops=1)
+              Recheck Cond: (ordered_at >= (now() - '30 days'::interval))
+              Rows Removed by Index Recheck: 1007
+              Filter: (status <> 'cancelled'::text)
+              Rows Removed by Filter: 2883
+              Heap Blocks: lossy=1152
+              Buffers: shared hit=1157
+              ->  Bitmap Index Scan on brin_orders_ordered_at  (cost=0.00..12.29 rows=61364 width=0) (actual time=0.028..0.029 rows=11520.00 loops=1)
+                    Index Cond: (ordered_at >= (now() - '30 days'::interval))
+                    Index Searches: 1
+                    Buffers: shared hit=5
+Planning:
+  Buffers: shared hit=176
+Planning Time: 0.446 ms
+Execution Time: 21.792 ms

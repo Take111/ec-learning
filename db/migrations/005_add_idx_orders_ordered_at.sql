@@ -1,0 +1,24 @@
+-- 005: orders.ordered_at 単一列インデックス(q2 の実験)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - orders.ordered_at に単一列の B-tree インデックスを張る
+--   - 対象クエリ: q2(直近30日の日別売上)。baseline は Seq Scan 5,512ページ / 45ms
+--
+-- ■ 実験の仮説(どちらに転ぶか計測前に立てておく)
+--   - 教科書ルール: 選択率20%(直近30日 = 6.2万/30万行)ではインデックスは使われない
+--   - 対抗仮説: ordered_at の correlation = 0.99999(時刻順採番の帰結)なので、
+--     ヒット行が連続領域に固まっており、インデックス経由でもほぼシーケンシャル読み
+--     → プランナは使うかもしれない
+--   - 前提が変わる箇所: この相関は「追記only・時刻順採番」というデータの性質に依存。
+--     UPDATEや削除・再利用が増えると相関は崩れ、この判断も変わる
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後: mise run explain -- q2 idx-ordered-at)
+--   - プランは変わるか(Seq Scan のままか / Index Scan か / Bitmap か)
+--   - 期間を変えると判断が入れ替わる「損益分岐点」はどこか
+--     (psql で 7日 / 90日 / 365日 / 全期間を手で試す)
+--   - Buffers は期間に比例して減るか(相関が高ければ比例するはず)
+CREATE INDEX idx_orders_ordered_at ON orders(ordered_at);
+
