@@ -30,6 +30,7 @@ func main() {
 
 	ordersHandler := &handler.Orders{Pool: pool}
 	productsHandler := &handler.Products{Pool: pool}
+	categoriesHandler := &handler.Categories{Pool: pool}
 
 	mux := http.NewServeMux()
 	// Go 1.22+ の ServeMux は「メソッド パス」形式でルートを書ける(外部ルーター不要の根拠)
@@ -41,6 +42,7 @@ func main() {
 	mux.HandleFunc("GET /orders", ordersHandler.ListByUser)
 	mux.HandleFunc("GET /products", productsHandler.List)
 	mux.HandleFunc("GET /products/{id}", productsHandler.Detail)
+	mux.HandleFunc("GET /categories", categoriesHandler.List)
 
 	addr := cmp.Or(os.Getenv("API_ADDR"), ":8080")
 	log.Printf("listening on %s", addr)

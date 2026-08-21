@@ -13,7 +13,7 @@ export function ProductList() {
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
-    queryFn: listCategories,
+    queryFn: ({ signal }) => listCategories(signal),
     staleTime: Infinity, // カテゴリはマスタデータ。セッション中の再取得は不要
   });
 
@@ -21,7 +21,8 @@ export function ProductList() {
   const categoryId = childId ?? undefined;
   const productsQuery = useInfiniteQuery({
     queryKey: ["products", categoryId],
-    queryFn: ({ pageParam }) => listProducts({ categoryId, cursor: pageParam }),
+    queryFn: ({ pageParam, signal }) =>
+      listProducts({ categoryId, cursor: pageParam }, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
   });

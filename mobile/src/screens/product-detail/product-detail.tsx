@@ -20,7 +20,7 @@ export function ProductDetail({ productId }: { productId: number }) {
 
   const query = useQuery({
     queryKey: ["product", productId],
-    queryFn: () => getProductDetail(productId),
+    queryFn: ({ signal }) => getProductDetail(productId, signal),
   });
 
   if (query.isLoading) {

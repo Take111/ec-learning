@@ -96,13 +96,21 @@ users, user_addresses, categories, products, orders, order_items, payments, revi
 実測記録は `docs/measurements/`、設計判断は `docs/decisions/`(ADR 001〜006)を参照。
 学習の総括は README のハイライト表。
 
-## 次にやること(フェーズB: POST /orders を Go で)
+## フェーズBは完了(2026-08-21)
 
-構成の決定済み事項: **標準ライブラリ net/http**(Go 1.22+のServeMux)+ **cmd/internal レイアウト**(`api/` 直下)。
+POST /orders(Tx+冪等+並行実証)、GET /orders(カーソル)、GET /products ×2、GET /categories。
+エラー→HTTP対応表・層深度ルールは `api/internal/handler/` のコメント参照。
 
-1. B-0: 土台 — mise に go 追加、`api/cmd/api` + `api/internal` の骨組み、healthz
-2. B-1: 注文トランザクションのSQLを書く(在庫引き当てUPDATE・冪等キーINSERT先行・明細一括INSERT)— SQLはユーザーが書く
-3. B-2: sqlc 導入、SQL→型付きGo関数の生成と生成物の理解
-4. B-3: ハンドラ実装(トランザクション境界、409/422のエラー設計)
-5. B-4: 実DBで並行テスト — 在庫マイナスが起きないことを証明する
-6. B-5: GET /orders(注文履歴)— ADR 006 のカーソル方式をAPIとして実装(next_cursor)
+## 次にやること(フェーズC: Expo アプリ)
+
+構成の決定済み事項: pnpm(mise固定)/ タブ+スタック / モック→実APIは `src/api/client.ts` の中身だけ差し替え / 商品画像は picsum.photos(seed=product_id)/ アクセントは systemBlue(ライト・ダーク両対応)。
+
+1. C-0: scaffold + mise タスク + 規約(components/<name>/<name>.tsx)— 完了
+2. C-1: デザイントークン(src/theme)+ 基礎コンポーネント — 完了
+3. C-2: 5画面をモックで構築、agent-device でシミュレータ検証 — 完了
+4. C-3: 実API接続(useInfiniteQuery × next_cursor、ApiError 契約)
+5. C-3.5: **デザインブラッシュアップ** — expo-native-ui / expo-design-system の audit /
+   frontend-design skill を使い、agent-device のスクリーンショット→評価→修正ループで
+   ポートフォリオ品質に磨く(実データの文字量で崩れる箇所もここで直す)
+6. C-4: エラー系UX — 409 価格改定ダイアログ・Idempotency-Key リトライ・在庫切れ(見せ場)
+7. C-5: mobile README + スクリーンショット/GIF

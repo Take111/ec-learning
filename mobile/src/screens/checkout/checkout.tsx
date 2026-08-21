@@ -7,12 +7,7 @@ import { placeOrder } from "@/api/client";
 import { Button } from "@/components/button/button";
 import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
-import {
-  DEMO_ADDRESS,
-  DEMO_ADDRESS_ID,
-  DEMO_USER_ID,
-  estimateShippingJpy,
-} from "@/constants";
+import { DEMO_ADDRESS, DEMO_ADDRESS_ID, estimateShippingJpy } from "@/constants";
 import { cartSubtotal, useCart } from "@/stores/cart";
 import { colors, radius, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
@@ -35,7 +30,6 @@ export function Checkout() {
     mutationFn: () =>
       placeOrder(
         {
-          user_id: DEMO_USER_ID,
           address_id: DEMO_ADDRESS_ID,
           items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
           expected_total_jpy: expectedTotal,

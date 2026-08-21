@@ -10,7 +10,7 @@ import { OrderRow } from "./order-row";
 export function OrderHistory() {
   const query = useInfiniteQuery({
     queryKey: ["orders"],
-    queryFn: ({ pageParam }) => listOrders({ cursor: pageParam }),
+    queryFn: ({ pageParam, signal }) => listOrders({ cursor: pageParam }, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
   });
