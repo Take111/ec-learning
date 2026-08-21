@@ -23,7 +23,11 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="products/[id]"
-            // 戻るボタンにタブグループ名 "(tabs)" が出るのを避け、シェブロンのみにする
+            // 詳細はルートStackのpush = タブバー非表示(Apple Store アプリと同じ作法)。
+            // フルスクリーンで商品に集中させ、sticky CTA フッターを成立させる意図。
+            // タブバー維持に変えるなら (home,cart,orders)/products/[id] の共有グループ化と
+            // CTA のスクロール内容化が必要(カートで同じ対処をした)。
+            // 戻るボタンはタブグループ名 "(tabs)" が出るのを避けシェブロンのみにする
             options={{ title: "商品詳細", headerBackButtonDisplayMode: "minimal" }}
           />
           <Stack.Screen

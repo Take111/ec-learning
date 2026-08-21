@@ -1,41 +1,33 @@
-import { Tabs } from "expo-router";
-import { SfSymbol } from "@/components/sf-symbol/sf-symbol";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { cartCount, useCart } from "@/stores/cart";
-import { colors } from "@/theme";
 
+// JSタブ(react-navigation)ではなく本物の UITabBarController。
+// iOS 26 では Liquid Glass 外観とスクロール時の最小化が無償で付く。
+// 前提: NativeTabs はヘッダーを描画しない — 各タブ配下の Stack がヘッダーを担う。
+//   トリガーは静的であること(動的な増減はナビゲータごと再マウントされ状態が飛ぶ)
 export default function TabsLayout() {
   const count = useCart((s) => cartCount(s.items));
 
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: colors.accent }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "商品",
-          tabBarIcon: ({ color, size }) => (
-            <SfSymbol name="storefront" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="cart"
-        options={{
-          title: "カート",
-          tabBarBadge: count > 0 ? count : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <SfSymbol name="cart" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: "注文履歴",
-          tabBarIcon: ({ color, size }) => (
-            <SfSymbol name="receipt" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tabs>
+    <NativeTabs minimizeBehavior="onScrollDown">
+      <NativeTabs.Trigger name="(home)">
+        <NativeTabs.Trigger.Icon sf="storefront" md="storefront" />
+        <NativeTabs.Trigger.Label>商品</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="cart">
+        <NativeTabs.Trigger.Icon sf="cart" md="shopping_cart" />
+        <NativeTabs.Trigger.Label>カート</NativeTabs.Trigger.Label>
+        {/* Badge はトリガー児だが screen options に変換されるだけなので、
+            条件レンダリングでも再マウントは起きない(静的制約はトリガー自体の話)。
+            hidden プロップは children 非空だと無視されるため、この形が唯一の正解 */}
+        {count > 0 && (
+          <NativeTabs.Trigger.Badge>{String(count)}</NativeTabs.Trigger.Badge>
+        )}
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="orders">
+        <NativeTabs.Trigger.Icon sf="receipt" md="receipt_long" />
+        <NativeTabs.Trigger.Label>注文履歴</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

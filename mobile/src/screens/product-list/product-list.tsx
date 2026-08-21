@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet } from "react-native";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { listCategories, listProducts } from "@/api/client";
 import { EmptyState } from "@/components/empty-state/empty-state";
@@ -29,48 +29,53 @@ export function ProductList() {
 
   const products = productsQuery.data?.pages.flatMap((p) => p.products) ?? [];
 
+  // FlatList を画面の最初の子にする(Liquid Glass のスクロールエッジ効果・
+  // ラージタイトルの折りたたみ・タブバー最小化がスクロールに追従する条件)。
+  // チップは ListHeaderComponent としてリスト内に置く
   return (
-    <View style={styles.container}>
-      <CategoryChips
-        categories={categoriesQuery.data?.categories ?? []}
-        selectedParentId={parentId}
-        selectedChildId={childId}
-        onSelectParent={(id) => {
-          setParentId(id);
-          setChildId(null);
-        }}
-        onSelectChild={setChildId}
-      />
-      <FlatList
-        data={products}
-        keyExtractor={(p) => String(p.id)}
-        numColumns={2}
-        columnWrapperStyle={styles.column}
-        contentContainerStyle={styles.content}
-        renderItem={({ item, index }) => <ProductCard product={item} index={index} />}
-        onEndReached={() => {
-          if (productsQuery.hasNextPage && !productsQuery.isFetchingNextPage) {
-            productsQuery.fetchNextPage();
-          }
-        }}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={
-          productsQuery.isLoading ? (
-            <ActivityIndicator style={styles.loading} />
-          ) : (
-            <EmptyState title="商品が見つかりません" />
-          )
+    <FlatList
+      style={styles.list}
+      contentInsetAdjustmentBehavior="automatic"
+      data={products}
+      keyExtractor={(p) => String(p.id)}
+      numColumns={2}
+      columnWrapperStyle={styles.column}
+      contentContainerStyle={styles.content}
+      ListHeaderComponent={
+        <CategoryChips
+          categories={categoriesQuery.data?.categories ?? []}
+          selectedParentId={parentId}
+          selectedChildId={childId}
+          onSelectParent={(id) => {
+            setParentId(id);
+            setChildId(null);
+          }}
+          onSelectChild={setChildId}
+        />
+      }
+      renderItem={({ item, index }) => <ProductCard product={item} index={index} />}
+      onEndReached={() => {
+        if (productsQuery.hasNextPage && !productsQuery.isFetchingNextPage) {
+          productsQuery.fetchNextPage();
         }
-        ListFooterComponent={
-          productsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.loading} /> : null
-        }
-      />
-    </View>
+      }}
+      onEndReachedThreshold={0.5}
+      ListEmptyComponent={
+        productsQuery.isLoading ? (
+          <ActivityIndicator style={styles.loading} />
+        ) : (
+          <EmptyState title="商品が見つかりません" />
+        )
+      }
+      ListFooterComponent={
+        productsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.loading} /> : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  list: {
     flex: 1,
     backgroundColor: colors.background,
   },

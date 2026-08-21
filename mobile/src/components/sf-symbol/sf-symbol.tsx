@@ -1,7 +1,8 @@
 import { ColorValue, StyleProp } from "react-native";
 import { Image, ImageStyle } from "expo-image";
 
-// SF Symbols を expo-image の sf: スキームで描画する共通部品(タブアイコン・評価の星)。
+// SF Symbols を expo-image の sf: スキームで描画する共通部品(現在の利用は評価の星のみ。
+// タブアイコンは NativeTabs.Trigger.Icon の sf/md プロップがフレームワーク側で解決する)。
 // 前提: sf: スキームは iOS のみ — Android 対応時はこの1箇所を Platform 分岐にして
 //   Material アイコン等へフォールバックする(呼び出し側は分岐を知らない)
 export function SfSymbol({

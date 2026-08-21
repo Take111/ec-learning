@@ -6,7 +6,7 @@ import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { estimateShippingJpy, FREE_SHIPPING_LINE_JPY } from "@/constants";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, shadows, spacing } from "@/theme";
+import { colors, radius, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 import { CartLine } from "./cart-line";
 
@@ -25,46 +25,52 @@ export function Cart() {
     );
   }
 
+  // サマリー+CTA は固定フッターではなくスクロール内容に置く。
+  // 前提: Liquid Glass の浮遊タブバー(NativeTabs)は画面下に被さるため、
+  //   固定フッターだと CTA が埋まる。スクロール内容なら自動インセットが
+  //   タブバー分の逃げを確保する(タブバー高さはAPIで取得できない)
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={items}
-        keyExtractor={(i) => String(i.productId)}
-        contentContainerStyle={styles.content}
-        renderItem={({ item }) => <CartLine item={item} />}
-      />
-      <View style={styles.footer}>
-        <SummaryRow label="小計" value={formatPrice(subtotal)} />
-        <SummaryRow
-          label="送料"
-          value={shipping === 0 ? "無料" : formatPrice(shipping)}
-        />
-        {shipping > 0 && (
-          <ThemedText variant="caption">
-            あと{formatPrice(FREE_SHIPPING_LINE_JPY - subtotal)}で送料無料
-          </ThemedText>
-        )}
-        <SummaryRow label="合計" value={formatPrice(subtotal + shipping)} emphasis />
-        <Button title="レジに進む" onPress={() => router.push("/checkout")} />
-      </View>
-    </View>
+    <FlatList
+      style={styles.list}
+      contentInsetAdjustmentBehavior="automatic"
+      data={items}
+      keyExtractor={(i) => String(i.productId)}
+      contentContainerStyle={styles.content}
+      renderItem={({ item }) => <CartLine item={item} />}
+      ListFooterComponent={
+        <View style={styles.summary}>
+          <SummaryRow label="小計" value={formatPrice(subtotal)} />
+          <SummaryRow
+            label="送料"
+            value={shipping === 0 ? "無料" : formatPrice(shipping)}
+          />
+          {shipping > 0 && (
+            <ThemedText variant="caption">
+              あと{formatPrice(FREE_SHIPPING_LINE_JPY - subtotal)}で送料無料
+            </ThemedText>
+          )}
+          <SummaryRow label="合計" value={formatPrice(subtotal + shipping)} emphasis />
+          <Button title="レジに進む" onPress={() => router.push("/checkout")} />
+        </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  list: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
     paddingHorizontal: spacing.md,
   },
-  footer: {
-    padding: spacing.md,
+  summary: {
     gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.separator,
-    boxShadow: shadows.card,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.secondaryBackground,
+    borderRadius: radius.md,
+    borderCurve: "continuous",
   },
 });

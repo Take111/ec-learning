@@ -20,6 +20,7 @@ export function OrderHistory() {
   return (
     <FlatList
       style={styles.list}
+      contentInsetAdjustmentBehavior="automatic"
       data={orders}
       keyExtractor={(o) => String(o.id)}
       contentContainerStyle={styles.content}
