@@ -6,7 +6,7 @@ import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { estimateShippingJpy, FREE_SHIPPING_LINE_JPY } from "@/constants";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, radius, spacing } from "@/theme";
+import { colors, spacing, surfaces } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 import { CartLine } from "./cart-line";
 
@@ -38,7 +38,7 @@ export function Cart() {
       contentContainerStyle={styles.content}
       renderItem={({ item }) => <CartLine item={item} />}
       ListFooterComponent={
-        <View style={styles.summary}>
+        <View style={[surfaces.card, styles.summary]}>
           <SummaryRow label="小計" value={formatPrice(subtotal)} />
           <SummaryRow
             label="送料"
@@ -68,9 +68,5 @@ const styles = StyleSheet.create({
   summary: {
     gap: spacing.sm,
     marginTop: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.secondaryBackground,
-    borderRadius: radius.md,
-    borderCurve: "continuous",
   },
 });

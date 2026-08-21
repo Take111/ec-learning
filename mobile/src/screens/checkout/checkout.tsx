@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { placeOrder } from "@/api/client";
 import { Button } from "@/components/button/button";
 import { SummaryRow } from "@/components/summary-row/summary-row";
@@ -10,11 +10,14 @@ import { ThemedText } from "@/components/themed-text/themed-text";
 import { DEMO_ADDRESS, DEMO_ADDRESS_ID, estimateShippingJpy } from "@/constants";
 import { useBottomInset } from "@/hooks/use-bottom-inset";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, interaction, radius, spacing } from "@/theme";
+import { colors, interaction, spacing, surfaces } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
+import { OrderComplete } from "./order-complete";
+import { showPlaceOrderError } from "./place-order-alerts";
 
 export function Checkout() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const contentBottom = useBottomInset(spacing.md) + spacing.md;
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
@@ -22,28 +25,55 @@ export function Checkout() {
   const shipping = estimateShippingJpy(subtotal);
 
   // 冪等キーは「この確定画面の1回の注文意図」につき1つ。
-  // リトライ(C-4)では同じキーを使い回すことで二重注文を防ぐ — 画面表示時に採番する。
+  // リトライ(通信失敗・価格改定の承諾後)では同じキーを使い回すことで
+  // 二重注文をサーバーの UNIQUE 制約が吸収する。
   // 前提: Hermes に global crypto は無いので expo-crypto を使う
   const [idempotencyKey] = useState(() => Crypto.randomUUID());
 
   const expectedTotal = subtotal + shipping;
   const mutation = useMutation({
-    // リクエストは押下時に組み立てる(レンダー毎に構築する理由がない)
-    mutationFn: () =>
+    // 価格改定(409)承諾後の再注文は、サーバーが返した現在合計を variables で
+    // 上書きする(setState 経由だと Alert コールバック時点の closure が古い値を掴む)
+    mutationFn: (vars?: { acceptedTotalJpy?: number }) =>
       placeOrder(
         {
           address_id: DEMO_ADDRESS_ID,
           items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
-          expected_total_jpy: expectedTotal,
+          expected_total_jpy: vars?.acceptedTotalJpy ?? expectedTotal,
         },
         idempotencyKey,
       ),
     onSuccess: () => {
       clear();
-      // C-4 で注文完了画面・エラーダイアログを作り込む。C-2 は履歴タブへ戻すだけ
-      router.dismissTo("/(tabs)/orders");
+      // アクティブなクエリは invalidate の瞬間にモーダル裏で refetch される
+      // (タブ画面はマウントされたまま=アクティブ)。履歴タブに着いた時点で
+      // 新注文が反映済みになるのはこの即時 refetch のおかげ
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
     },
+    onError: (error) =>
+      showPlaceOrderError(error, {
+        items,
+        onAcceptNewTotal: (newTotalJpy) =>
+          mutation.mutate({ acceptedTotalJpy: newTotalJpy }),
+        onRetry: () => mutation.mutate(undefined),
+        onBackToCart: () => router.back(),
+      }),
   });
+
+  // 成功後はモーダルの中身を完了ビューへ(キャンセル導線も消す)
+  if (mutation.isSuccess) {
+    return (
+      <>
+        <Stack.Screen options={{ title: "注文完了", headerLeft: () => null }} />
+        <OrderComplete
+          order={mutation.data}
+          onClose={() => router.dismissTo("/orders")}
+        />
+      </>
+    );
+  }
 
   return (
     <ScrollView
@@ -51,19 +81,23 @@ export function Checkout() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={[styles.content, { paddingBottom: contentBottom }]}
     >
-      {/* HIG: モーダルには明示的な離脱手段を置く(スワイプだけに頼らない) */}
+      {/* HIG: モーダルには明示的な離脱手段を置く(スワイプだけに頼らない)。
+          送信中の離脱は禁止 — 離脱後に onSuccess/onError が走り、裏の画面に
+          突然 Alert が出たりカートが無言で空になる事故を防ぐ */}
       <Stack.Screen
         options={{
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.back()}
-              hitSlop={8}
-              style={({ pressed }) => pressed && { opacity: interaction.pressed }}
-            >
-              <ThemedText color="accent">キャンセル</ThemedText>
-            </Pressable>
-          ),
+          gestureEnabled: !mutation.isPending,
+          headerLeft: () =>
+            mutation.isPending ? null : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.back()}
+                hitSlop={8}
+                style={({ pressed }) => pressed && { opacity: interaction.pressed }}
+              >
+                <ThemedText color="accent">キャンセル</ThemedText>
+              </Pressable>
+            ),
         }}
       />
       <Section title="配送先">
@@ -81,7 +115,9 @@ export function Checkout() {
             <ThemedText variant="subhead" color="label" numberOfLines={1} style={styles.lineName}>
               {i.name} × {i.quantity}
             </ThemedText>
-            <ThemedText variant="body">{formatPrice(i.priceJpy * i.quantity)}</ThemedText>
+            <ThemedText variant="body" tabular>
+              {formatPrice(i.priceJpy * i.quantity)}
+            </ThemedText>
           </View>
         ))}
       </Section>
@@ -97,7 +133,7 @@ export function Checkout() {
         title="注文を確定する"
         loading={mutation.isPending}
         disabled={items.length === 0}
-        onPress={() => mutation.mutate()}
+        onPress={() => mutation.mutate(undefined)}
       />
     </ScrollView>
   );
@@ -107,7 +143,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <View style={styles.section}>
       <ThemedText variant="headline">{title}</ThemedText>
-      <View style={styles.sectionBody}>{children}</View>
+      <View style={[surfaces.card, styles.sectionBody]}>{children}</View>
     </View>
   );
 }
@@ -126,10 +162,6 @@ const styles = StyleSheet.create({
   },
   sectionBody: {
     gap: spacing.xs,
-    backgroundColor: colors.secondaryBackground,
-    borderRadius: radius.md,
-    borderCurve: "continuous",
-    padding: spacing.md,
   },
   line: {
     flexDirection: "row",
