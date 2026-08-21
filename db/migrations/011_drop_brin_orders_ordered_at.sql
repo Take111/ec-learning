@@ -1,0 +1,20 @@
+-- 011: brin_orders_ordered_at(006)を削除 — btree(010)への一本化
+--
+-- ■ 要件(この下に SQL を書く)
+--   - 006 で張った brin_orders_ordered_at を削除する
+--
+-- ■ この判断の根拠(コメントで残す)
+--   - A-7 のページネーション要件で (ordered_at, id) btree(010)が必須になり、
+--     その先頭列が範囲検索も引き受けられる(実測: BRIN 1,103p vs btree 約1,336p、差2割)
+--   - BRIN の区画メモ(min/max)は広がる一方で、ROLLBACK されたINSERTにすら
+--     恒久劣化させられることを実測(全域 lossy=5450 化 → REINDEX で修理)。
+--     2割の読み削減のために、静かに劣化する構造物を監視する取引は割に合わない
+--   - 前提が変わる箇所: orders が数千万行級になり btree のサイズ・書き込み税が
+--     問題化したら、BRIN + 「ページ送りは別手段」の構成を再検討する価値がある
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後)
+--   - q2 が btree 経由(Index Scan)に切り替わり、1,300ページ台で動くこと
+DROP INDEX brin_orders_ordered_at;

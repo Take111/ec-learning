@@ -1,0 +1,24 @@
+-- 010: orders (ordered_at, id) 複合インデックス(A-7 ページネーション用)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - orders に (ordered_at, id) の複合 B-tree インデックスを張る
+--
+-- ■ この設計の前提(コメントで残す判断)
+--   - 007 で残した前提「ORDER BY 需要が来たら再検討」の回収。全注文の
+--     新しい順ページ送り(ORDER BY ordered_at DESC, id DESC)が要件化した
+--   - id を第2キーに入れる理由:
+--     (1) 同時刻の注文の順序を確定させる(タイブレークなしのページ送りは
+--         ページ境界で行の重複・欠落が起きうる)
+--     (2) カーソル方式の WHERE (ordered_at, id) < (?, ?) がこの並びを前提とする
+--   - DESC は付けない(q1 と同じく Backward スキャンで賄う。全列同方向なので可)
+--   - BRIN(006)との重複が生じる: このbtreeの先頭列は範囲検索にも使えるため。
+--     どちらを残すかは計測後に判断する(次の決断ポイント)
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後)
+--   - OFFSET 0 / 1,000 / 100,000 の Buffers がどう変わるか(線形に増えるはず)
+--   - external merge(ディスク溢れ)は消えるか
+--   - カーソル方式は OFFSET 100,000 相当の深さでも一定コストか
+CREATE INDEX idx_orders_ordered_at_id ON orders(ordered_at, id);

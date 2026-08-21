@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict QKGnvdM0NsIdOLlsLXG4xaiBMyKj6g7h8556QlTD9SjlKAmthI4Etn7zB663OUk
+\restrict MkdAG1Kzll5iJ66TbEAMi3pMCixpu3dgjqi4DltRz6ssPsMsLL6eL4I2WIgdsbB
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -349,10 +349,10 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: brin_orders_ordered_at; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_orders_ordered_at_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX brin_orders_ordered_at ON public.orders USING brin (ordered_at);
+CREATE INDEX idx_orders_ordered_at_id ON public.orders USING btree (ordered_at, id);
 
 
 --
@@ -452,5 +452,5 @@ ALTER TABLE ONLY public.user_addresses
 -- PostgreSQL database dump complete
 --
 
-\unrestrict QKGnvdM0NsIdOLlsLXG4xaiBMyKj6g7h8556QlTD9SjlKAmthI4Etn7zB663OUk
+\unrestrict MkdAG1Kzll5iJ66TbEAMi3pMCixpu3dgjqi4DltRz6ssPsMsLL6eL4I2WIgdsbB
 
