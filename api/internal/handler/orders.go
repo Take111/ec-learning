@@ -1,5 +1,7 @@
 // Package handler はHTTPの境界を担う: パース・バリデーション・エラー→ステータス変換。
 // ビジネスロジック(トランザクション)は internal/orders に置き、この層には持ち込まない。
+// 層深度のルール: 読み取り専用・単一クエリのエンドポイントは handler から db を直接呼ぶ。
+// トランザクションや複数クエリの調整が生まれた時点で domain 層(internal/orders 等)に昇格する。
 package handler
 
 import (
