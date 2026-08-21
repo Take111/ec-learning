@@ -32,10 +32,10 @@
 --     Go側でどう見分けるかはB-3の議論(ヒント: 衝突なら次のクエリで見つかる)
 INSERT INTO orders (idempotency_key, user_id, status, total_jpy, shipping_fee_jpy, ordered_at,
                     ship_to_postal_code, ship_to_prefecture, ship_to_line1, ship_to_line2)
-SELECT $1, $2, 'pending', 0, 0, now(),
+SELECT sqlc.arg(idempotency_key), sqlc.arg(user_id), 'pending', 0, 0, now(),
        postal_code, prefecture, line1, line2
 FROM user_addresses
-WHERE id = $3 AND user_id = $2
+WHERE user_addresses.id = sqlc.arg(address_id) AND user_addresses.user_id = sqlc.arg(user_id)
 ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING id;
 
@@ -61,8 +61,8 @@ WHERE idempotency_key = $1;
 --   - 行ロックは UPDATE が自動で取る。同じ商品への並行注文は片方が待たされ、
 --     待ち明けに WHERE を再評価する — これが「仕組みで安全」の中身(B-4で並行実証)
 UPDATE products
-SET stock = stock - $2
-WHERE id = $1 AND stock >= $2 AND is_active = true
+SET stock = stock - sqlc.arg(quantity)
+WHERE products.id = sqlc.arg(product_id) AND products.stock >= sqlc.arg(quantity) AND products.is_active = true
 RETURNING price_jpy;
 
 

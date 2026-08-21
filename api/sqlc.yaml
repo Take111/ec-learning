@@ -1,0 +1,17 @@
+# sqlc: SQL → 型付きGo関数の生成設定
+# 前提: schema はマイグレーションの 001(テーブル定義)のみを渡す。
+#   型生成に必要なのはテーブル定義だけで、インデックス・統計(002以降)は無関係。
+#   sqlc のパーサは CREATE STATISTICS / ANALYZE 等を解せない可能性があるため
+#   ディレクトリ丸ごとは渡さない。
+#   前提が変わる箇所: 列を追加するマイグレーションを作ったら、ここのリストにも足すこと。
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema:
+      - "../db/migrations/001_init.sql"
+    queries: "internal/db/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        sql_package: "pgx/v5"

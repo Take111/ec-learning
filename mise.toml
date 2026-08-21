@@ -4,6 +4,7 @@
 [tools]
 node = "22" # faker / tsx 用。システムの v18 に依存しない
 go = "1.25" # フェーズB(API)用。global の go に依存せずプロジェクトで固定
+sqlc = "latest"
 
 [env]
 # ローカル学習用の固定値。このリポジトリは公開前提なので、あえて平文で置く
@@ -62,3 +63,8 @@ run = "docker compose exec db psql -U ec -d ec"
 description = "APIサーバーを起動(:8080)"
 dir = "api"
 run = "mise exec -- go run ./cmd/api"
+
+[tasks.sqlc]
+description = "SQLから型付きGoコードを生成(api/internal/db/)"
+dir = "api"
+run = "mise exec -- sqlc generate"
