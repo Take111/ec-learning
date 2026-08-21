@@ -37,6 +37,7 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("POST /orders", ordersHandler.Place)
+	mux.HandleFunc("GET /orders", ordersHandler.ListByUser)
 
 	addr := cmp.Or(os.Getenv("API_ADDR"), ":8080")
 	log.Printf("listening on %s", addr)

@@ -176,3 +176,75 @@ func (q *Queries) InsertOrderItem(ctx context.Context, arg InsertOrderItemParams
 	)
 	return err
 }
+
+const listOrdersByUser = `-- name: ListOrdersByUser :many
+SELECT id, status, total_jpy, shipping_fee_jpy, ordered_at
+FROM orders
+WHERE user_id = $1 AND (ordered_at, id) < ($2::timestamptz, $3::bigint)
+ORDER BY ordered_at DESC, id DESC
+LIMIT $4
+`
+
+type ListOrdersByUserParams struct {
+	UserID          int64
+	CursorOrderedAt pgtype.Timestamptz
+	CursorID        int64
+	PageSize        int32
+}
+
+type ListOrdersByUserRow struct {
+	ID             int64
+	Status         string
+	TotalJpy       int32
+	ShippingFeeJpy int32
+	OrderedAt      pgtype.Timestamptz
+}
+
+// ■ 要件(B-5: GET /orders のカーソルページネーション。この下に SQL を書く)
+//   - user_id(sqlc.arg(user_id))の注文を新しい順に page_size 件返す
+//   - 返す列: id, status, total_jpy, ordered_at
+//   - カーソル条件: (ordered_at, id) が (sqlc.arg(cursor_ordered_at), sqlc.arg(cursor_id))
+//     より「前」の行だけ(行値比較。A-7 で実測したやつがそのまま使える)
+//   - 並び: ordered_at DESC, id DESC(タイブレークまで含めた全順序 — ADR 006)
+//   - LIMIT は sqlc.arg(page_size)
+//
+// ■ ヒント
+//   - 1ページ目(カーソルなし)の扱い: Go側から cursor_ordered_at = 'infinity'、
+//     cursor_id = int64最大値 を渡す設計にする(全行が (infinity, max) より前なので
+//     条件が自然に無効化される。クエリを2本に分けなくて済む)
+//
+// ■ 観察ポイント(実装後に EXPLAIN で確認)
+//   - 既存の idx_orders_user_id_ordered_at(user_id, ordered_at)で足りるか?
+//     カーソルのタイブレークには id が要るが、インデックスに id 列は無い。
+//     プランに Filter が残るか、(user_id, ordered_at, id) への張り替え(013)が要るかは
+//     EXPLAIN が教えてくれる
+func (q *Queries) ListOrdersByUser(ctx context.Context, arg ListOrdersByUserParams) ([]ListOrdersByUserRow, error) {
+	rows, err := q.db.Query(ctx, listOrdersByUser,
+		arg.UserID,
+		arg.CursorOrderedAt,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrdersByUserRow
+	for rows.Next() {
+		var i ListOrdersByUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.TotalJpy,
+			&i.ShippingFeeJpy,
+			&i.OrderedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
