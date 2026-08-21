@@ -86,17 +86,18 @@ users, user_addresses, categories, products, orders, order_items, payments, revi
 | order_items | **1,200,000** |
 | reviews | 200,000 |
 
-## 次にやること(フェーズA)
+## フェーズAは完了(2026-08-21)
 
-1. Docker Compose で PostgreSQL 18 を立てる
-2. schema.sql を適用
-3. TS + @faker-js/faker で CSV 生成(8テーブル分、ID採番とFK整合は生成側)→ `\copy` で投入
-4. インデックスなしで遅いクエリを実測(EXPLAIN ANALYZE):
-   - ユーザーの注文履歴(orders.user_id で Seq Scan になるはず)
-   - 期間指定の売上集計(ordered_at 範囲)
-   - 商品別売上ランキング(order_items JOIN orders)
-   - 都道府県×カテゴリ別売上(4テーブルJOIN)
-   - 平均評価4以上の商品検索(GROUP BY + HAVING)
-5. インデックスを張って before/after を比較(B-tree、複合、部分インデックス)
-6. OFFSET vs カーソルページネーションの比較
-7. その後フェーズB: POST /orders を Go(pgx + sqlc)で実装(設計は確定済み)
+実測記録は `docs/measurements/`、設計判断は `docs/decisions/`(ADR 001〜006)を参照。
+学習の総括は README のハイライト表。
+
+## 次にやること(フェーズB: POST /orders を Go で)
+
+構成の決定済み事項: **標準ライブラリ net/http**(Go 1.22+のServeMux)+ **cmd/internal レイアウト**(`api/` 直下)。
+
+1. B-0: 土台 — mise に go 追加、`api/cmd/api` + `api/internal` の骨組み、healthz
+2. B-1: 注文トランザクションのSQLを書く(在庫引き当てUPDATE・冪等キーINSERT先行・明細一括INSERT)— SQLはユーザーが書く
+3. B-2: sqlc 導入、SQL→型付きGo関数の生成と生成物の理解
+4. B-3: ハンドラ実装(トランザクション境界、409/422のエラー設計)
+5. B-4: 実DBで並行テスト — 在庫マイナスが起きないことを証明する
+6. B-5: GET /orders(注文履歴)— ADR 006 のカーソル方式をAPIとして実装(next_cursor)

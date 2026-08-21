@@ -1,0 +1,5 @@
+
+[tasks.api-run]
+description = "APIサーバーを起動(:8080)"
+dir = "api"
+run = "mise exec -- go run ./cmd/api"
