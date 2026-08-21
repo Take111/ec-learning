@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict O4uVhiOJ27QTdx2KTBx09z7AewfS3errKCdrwfIXvvjO6aZVYbGCPaq9BRkyeW1
+\restrict QKGnvdM0NsIdOLlsLXG4xaiBMyKj6g7h8556QlTD9SjlKAmthI4Etn7zB663OUk
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -363,6 +363,13 @@ CREATE INDEX idx_orders_user_id_ordered_at ON public.orders USING btree (user_id
 
 
 --
+-- Name: idx_reviews_covering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reviews_covering ON public.reviews USING btree (product_id) INCLUDE (rating);
+
+
+--
 -- Name: stats_orders_day; Type: STATISTICS; Schema: public; Owner: -
 --
 
@@ -445,5 +452,5 @@ ALTER TABLE ONLY public.user_addresses
 -- PostgreSQL database dump complete
 --
 
-\unrestrict O4uVhiOJ27QTdx2KTBx09z7AewfS3errKCdrwfIXvvjO6aZVYbGCPaq9BRkyeW1
+\unrestrict QKGnvdM0NsIdOLlsLXG4xaiBMyKj6g7h8556QlTD9SjlKAmthI4Etn7zB663OUk
 

@@ -1,0 +1,28 @@
+-- 009: reviews のカバリングインデックス(q5 を Index Only Scan にする)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - q5 の集計(product_id で GROUP BY し rating を読む)がインデックスだけで
+--     完結するインデックスを reviews に張る
+--   - 2案からあなたが選ぶ(どちらでも q5 は成立する):
+--       案1: CREATE INDEX ... ON reviews (product_id, rating);
+--       案2: CREATE INDEX ... ON reviews (product_id) INCLUDE (rating);
+--     違い: 案2の INCLUDE 列は「リーフの荷物」で検索キーにならない。
+--     rating で絞る・並べる予定がないなら、意図が構文に残る案2が読みやすい
+--
+-- ■ この設計の前提(コメントで残す)
+--   - 既存の UNIQUE (product_id, user_id) は制約用に残る。これは product_id の
+--     プレフィックスを持つが rating を含まないため q5 では毎行ヒープ行きになる
+--     (baseline の 200,888ページタッチの原因)
+--   - Index Only Scan の成立には可視性マップ(VM)が必要。VMは (auto)vacuum が立てる。
+--     前提が変わる箇所: UPDATE/DELETE が増える運用では VM が落ち続け、
+--     Heap Fetches が増えて IOS の利得は目減りする
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後: mise run explain -- q5 idx-covering)
+--   - Index Only Scan が出るか。Heap Fetches はいくつか(VM健在なら ≈ 0)
+--   - Buffers が baseline の 200,888 からどこまで落ちるか
+--   - Merge Join の相手はどのインデックスか(products 側の読み方は変わるか)
+CREATE INDEX idx_reviews_covering ON reviews (product_id) INCLUDE (rating);
+

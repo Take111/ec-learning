@@ -1,0 +1,89 @@
+====================================================================
+query: q5    label: idx-covering
+====================================================================
+-- q5: 平均評価4以上の商品検索(レビュー5件以上)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - 平均評価(rating)が 4.0 以上の商品を探す
+--   - ただしレビューが5件未満の商品は除外(1件だけ★5、を排除する実務あるある)
+--   - 商品名・平均評価・レビュー件数を、平均評価の降順 → 件数の降順で上位50件
+--
+-- ■ ヒント
+--   - reviews(20万行)を product_id で GROUP BY し、HAVING で絞る
+--
+-- ■ 観察ポイント
+--   - このデータのレビューはJ字分布(★5が48%)なので「avg >= 4」は絞り込みとして
+--     ほぼ機能しない — HAVING が効くのは集計後だけ、という構造の体感
+--   - GROUP BY 20万行のコストと、products との JOIN をどの段階でやるか
+--   - 「平均評価」を毎回集計するのは正しい設計か?(非正規化やマテビューの議論の入口)
+SELECT
+    p.name AS product_name,
+    AVG(r.rating) AS average_rating,
+    COUNT(*) AS review_count
+FROM reviews AS r
+JOIN products AS p ON r.product_id = p.id
+GROUP BY p.id
+HAVING AVG(r.rating) >= 4.0 AND COUNT(*) >= 5
+ORDER BY average_rating DESC, review_count DESC
+LIMIT 50;
+
+-------- 実行1回目(キャッシュが冷えていれば shared read が出る) --------
+Limit  (cost=13950.14..13950.27 rows=50 width=92) (actual time=51.533..51.538 rows=50.00 loops=1)
+  Buffers: shared hit=44 read=2162
+  I/O Timings: shared read=7.821
+  ->  Sort  (cost=13950.14..13964.03 rows=5556 width=92) (actual time=51.533..51.534 rows=50.00 loops=1)
+        Sort Key: (avg(r.rating)) DESC, (count(*)) DESC
+        Sort Method: top-N heapsort  Memory: 35kB
+        Buffers: shared hit=44 read=2162
+        I/O Timings: shared read=7.821
+        ->  GroupAggregate  (cost=0.76..13765.58 rows=5556 width=92) (actual time=0.294..51.201 rows=2282.00 loops=1)
+              Group Key: p.id
+              Filter: ((avg(r.rating) >= 4.0) AND (count(*) >= 5))
+              Rows Removed by Filter: 28432
+              Buffers: shared hit=41 read=2162
+              I/O Timings: shared read=7.821
+              ->  Merge Join  (cost=0.76..11390.58 rows=200000 width=54) (actual time=0.257..35.414 rows=200000.00 loops=1)
+                    Merge Cond: (r.product_id = p.id)
+                    Buffers: shared hit=41 read=2162
+                    I/O Timings: shared read=7.821
+                    ->  Index Only Scan using idx_reviews_covering on reviews r  (cost=0.42..6156.42 rows=200000 width=10) (actual time=0.008..11.108 rows=200000.00 loops=1)
+                          Heap Fetches: 0
+                          Index Searches: 1
+                          Buffers: shared hit=5 read=765
+                          I/O Timings: shared read=2.207
+                    ->  Index Scan using products_pkey on products p  (cost=0.29..2609.22 rows=50000 width=52) (actual time=0.246..9.029 rows=49999.00 loops=1)
+                          Index Searches: 1
+                          Buffers: shared hit=36 read=1397
+                          I/O Timings: shared read=5.614
+Planning:
+  Buffers: shared hit=220 read=14
+  I/O Timings: shared read=2.113
+Planning Time: 2.900 ms
+Execution Time: 51.590 ms
+
+-------- 実行2回目(キャッシュ済み。実測値はこちらを基準にする) --------
+Limit  (cost=13950.14..13950.27 rows=50 width=92) (actual time=41.419..41.423 rows=50.00 loops=1)
+  Buffers: shared hit=2206
+  ->  Sort  (cost=13950.14..13964.03 rows=5556 width=92) (actual time=41.419..41.420 rows=50.00 loops=1)
+        Sort Key: (avg(r.rating)) DESC, (count(*)) DESC
+        Sort Method: top-N heapsort  Memory: 35kB
+        Buffers: shared hit=2206
+        ->  GroupAggregate  (cost=0.76..13765.58 rows=5556 width=92) (actual time=0.046..41.132 rows=2282.00 loops=1)
+              Group Key: p.id
+              Filter: ((avg(r.rating) >= 4.0) AND (count(*) >= 5))
+              Rows Removed by Filter: 28432
+              Buffers: shared hit=2203
+              ->  Merge Join  (cost=0.76..11390.58 rows=200000 width=54) (actual time=0.014..26.279 rows=200000.00 loops=1)
+                    Merge Cond: (r.product_id = p.id)
+                    Buffers: shared hit=2203
+                    ->  Index Only Scan using idx_reviews_covering on reviews r  (cost=0.42..6156.42 rows=200000 width=10) (actual time=0.007..8.382 rows=200000.00 loops=1)
+                          Heap Fetches: 0
+                          Index Searches: 1
+                          Buffers: shared hit=770
+                    ->  Index Scan using products_pkey on products p  (cost=0.29..2609.22 rows=50000 width=52) (actual time=0.006..3.495 rows=49999.00 loops=1)
+                          Index Searches: 1
+                          Buffers: shared hit=1433
+Planning:
+  Buffers: shared hit=234
+Planning Time: 0.569 ms
+Execution Time: 41.467 ms
