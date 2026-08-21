@@ -37,14 +37,14 @@ SELECT sqlc.arg(idempotency_key), sqlc.arg(user_id), 'pending', 0, 0, now(),
 FROM user_addresses
 WHERE user_addresses.id = sqlc.arg(address_id) AND user_addresses.user_id = sqlc.arg(user_id)
 ON CONFLICT (idempotency_key) DO NOTHING
-RETURNING id;
+RETURNING id, status;
 
 
 -- name: GetOrderByIdempotencyKey :one
 -- ■ 要件
 --   - idempotency_key($1) で既存注文を1行取得(id, status, total_jpy を返す)
 --   - リトライ吸収の応答(200で既存注文を返す)に使う
-SELECT id, status, total_jpy
+SELECT id, status, total_jpy, shipping_fee_jpy
 FROM orders
 WHERE idempotency_key = $1;
 

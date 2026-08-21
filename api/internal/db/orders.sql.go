@@ -20,13 +20,18 @@ SELECT $1, $2, 'pending', 0, 0, now(),
 FROM user_addresses
 WHERE user_addresses.id = $3 AND user_addresses.user_id = $2
 ON CONFLICT (idempotency_key) DO NOTHING
-RETURNING id
+RETURNING id, status
 `
 
 type CreateOrderParams struct {
 	IdempotencyKey pgtype.UUID
 	UserID         int64
 	AddressID      int64
+}
+
+type CreateOrderRow struct {
+	ID     int64
+	Status string
 }
 
 // POST /orders の注文トランザクションを構成するSQL(B-1)
@@ -61,11 +66,11 @@ type CreateOrderParams struct {
 // ■ 観察ポイント(B-3で効いてくる)
 //   - この設計だと「0行」が2つの意味を持つ(キー衝突 or 住所不正)。
 //     Go側でどう見分けるかはB-3の議論(ヒント: 衝突なら次のクエリで見つかる)
-func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (int64, error) {
+func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error) {
 	row := q.db.QueryRow(ctx, createOrder, arg.IdempotencyKey, arg.UserID, arg.AddressID)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	var i CreateOrderRow
+	err := row.Scan(&i.ID, &i.Status)
+	return i, err
 }
 
 const decrementStock = `-- name: DecrementStock :one
@@ -120,15 +125,16 @@ func (q *Queries) FinalizeOrder(ctx context.Context, arg FinalizeOrderParams) er
 }
 
 const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
-SELECT id, status, total_jpy
+SELECT id, status, total_jpy, shipping_fee_jpy
 FROM orders
 WHERE idempotency_key = $1
 `
 
 type GetOrderByIdempotencyKeyRow struct {
-	ID       int64
-	Status   string
-	TotalJpy int32
+	ID             int64
+	Status         string
+	TotalJpy       int32
+	ShippingFeeJpy int32
 }
 
 // ■ 要件
@@ -137,7 +143,12 @@ type GetOrderByIdempotencyKeyRow struct {
 func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.UUID) (GetOrderByIdempotencyKeyRow, error) {
 	row := q.db.QueryRow(ctx, getOrderByIdempotencyKey, idempotencyKey)
 	var i GetOrderByIdempotencyKeyRow
-	err := row.Scan(&i.ID, &i.Status, &i.TotalJpy)
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.TotalJpy,
+		&i.ShippingFeeJpy,
+	)
 	return i, err
 }
 
