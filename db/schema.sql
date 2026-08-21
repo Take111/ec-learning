@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict MkdAG1Kzll5iJ66TbEAMi3pMCixpu3dgjqi4DltRz6ssPsMsLL6eL4I2WIgdsbB
+\restrict kggsHwdOOkJEtUanTOFcoJG1MLbnzbxIy5fJGH3ADrp7xV3QWQHbf1tDgXGYrZb
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -269,6 +269,14 @@ ALTER TABLE ONLY public.categories
 
 
 --
+-- Name: order_items order_items_order_id_product_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_items
+    ADD CONSTRAINT order_items_order_id_product_id_unique UNIQUE (order_id, product_id);
+
+
+--
 -- Name: order_items order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -452,5 +460,5 @@ ALTER TABLE ONLY public.user_addresses
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MkdAG1Kzll5iJ66TbEAMi3pMCixpu3dgjqi4DltRz6ssPsMsLL6eL4I2WIgdsbB
+\unrestrict kggsHwdOOkJEtUanTOFcoJG1MLbnzbxIy5fJGH3ADrp7xV3QWQHbf1tDgXGYrZb
 

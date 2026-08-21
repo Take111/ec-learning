@@ -1,0 +1,21 @@
+-- 012: order_items に UNIQUE(order_id, product_id) — 明細一意性を仕組みに昇格
+--
+-- ■ 要件(この下に SQL を書く)
+--   - order_items に (order_id, product_id) の UNIQUE 制約を追加する
+--   - 構文: ALTER TABLE <t> ADD CONSTRAINT <名前> UNIQUE (<列>, <列>);
+--
+-- ■ この判断の根拠(コメントで残す)
+--   - 「同一注文に同一商品は1行(カートでマージされる前提)」という不変条件が、
+--     これまで handler のバリデーション(規律)だけで守られていた。
+--     /simplify のレビューで「仕組みで安全 > 規律で安全」の原則違反と指摘された
+--   - handler の 400 は UX のための事前チェックとして残す(二段構え)。
+--     この制約は別経路(管理API・バッチ・直接SQL)からの重複を止める最終防衛
+--   - 副産物として (order_id, product_id) の複合インデックスができる。
+--     「PK/UNIQUE以外は実測してから張る」方針とは矛盾しない(これは整合性制約であり
+--     性能チューニングではない)
+--
+-- ■ 適用前の前提確認
+--   - 既存データに重複がないこと(データ生成側で重複回避済みだが、適用時に
+--     制約自身が全行検証する — 違反があれば適用が失敗して教えてくれる)
+ALTER TABLE order_items
+ADD CONSTRAINT order_items_order_id_product_id_unique UNIQUE (order_id, product_id);
