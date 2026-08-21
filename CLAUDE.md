@@ -109,8 +109,11 @@ POST /orders(Tx+冪等+並行実証)、GET /orders(カーソル)、GET /products
 2. C-1: デザイントークン(src/theme)+ 基礎コンポーネント — 完了
 3. C-2: 5画面をモックで構築、agent-device でシミュレータ検証 — 完了
 4. C-3: 実API接続(useInfiniteQuery × next_cursor、ApiError 契約)
-5. C-3.5: **デザインブラッシュアップ** — expo-native-ui / expo-design-system の audit /
+5. C-3.4: **development build 化** — Expo Go をやめ expo-dev-client + prebuild +
+   expo run:ios に移行(Expo Go の開発UIオーバーレイ排除・ネイティブ依存の自由度・
+   agent-device での検証安定化。スクリーンショットが本番同等の見た目になる)
+6. C-3.5: **デザインブラッシュアップ** — expo-native-ui / expo-design-system の audit /
    frontend-design skill を使い、agent-device のスクリーンショット→評価→修正ループで
    ポートフォリオ品質に磨く(実データの文字量で崩れる箇所もここで直す)
-6. C-4: エラー系UX — 409 価格改定ダイアログ・Idempotency-Key リトライ・在庫切れ(見せ場)
-7. C-5: mobile README + スクリーンショット/GIF
+7. C-4: エラー系UX — 409 価格改定ダイアログ・Idempotency-Key リトライ・在庫切れ(見せ場)
+8. C-5: mobile README + スクリーンショット/GIF
