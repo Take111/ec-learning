@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Nl3PaUa5omCqlH3336VQ3GV2ig38MQHOrQLPZdSmf4WUi7hAndJ1AnvGSzqLdv2
+\restrict O4uVhiOJ27QTdx2KTBx09z7AewfS3errKCdrwfIXvvjO6aZVYbGCPaq9BRkyeW1
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -363,6 +363,13 @@ CREATE INDEX idx_orders_user_id_ordered_at ON public.orders USING btree (user_id
 
 
 --
+-- Name: stats_orders_day; Type: STATISTICS; Schema: public; Owner: -
+--
+
+CREATE STATISTICS public.stats_orders_day ON date_trunc('day'::text, ordered_at, 'Asia/Tokyo'::text) FROM public.orders;
+
+
+--
 -- Name: categories categories_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -438,5 +445,5 @@ ALTER TABLE ONLY public.user_addresses
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Nl3PaUa5omCqlH3336VQ3GV2ig38MQHOrQLPZdSmf4WUi7hAndJ1AnvGSzqLdv2
+\unrestrict O4uVhiOJ27QTdx2KTBx09z7AewfS3errKCdrwfIXvvjO6aZVYbGCPaq9BRkyeW1
 

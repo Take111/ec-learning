@@ -1,0 +1,24 @@
+-- 008: 日別集計の式統計(q2 の推定1,864倍ハズレの治療)
+--
+-- ■ 要件(この下に SQL を書く)
+--   - date_trunc('day', ordered_at, 'Asia/Tokyo') に対する拡張統計を作る
+--     構文: CREATE STATISTICS <名前> ON (<式>) FROM <テーブル>;
+--   - 続けて ANALYZE orders; も書くこと。統計オブジェクトは「枠」でしかなく、
+--     ANALYZE が走って初めて中身(n_distinct 等)が入る。忘れると無言で何も起きない
+--
+-- ■ この判断の前提(コメントで残す)
+--   - q2 の GROUP BY は式なので列統計を引けず、グループ数を 57,295 と推定していた
+--     (実際は31)。式統計は「式の計算結果」をANALYZE時にサンプリングして記録する
+--   - 対象式はクエリ側と完全一致している必要がある(タイムゾーン引数まで)。
+--     前提が変わる箇所: q2 の集計単位や TZ を変えたら、この統計も作り直し
+--
+-- ■ ルール(A-2 で決めたもの)
+--   - BEGIN/COMMIT は書かない(migrate.sh が --single-transaction で管理)
+--
+-- ■ 観察ポイント(適用後: mise run explain -- q2 expr-stats)
+--   - HashAggregate の推定グループ数が 57,295 → 30前後 に直るか
+--   - 推定が直った結果、プランの形まで変わるか(グループ数が少ないと分かれば
+--     並列の Partial/Finalize 集計が魅力的になるかもしれない)
+--   - Sort の入力見積もりと HashAggregate のメモリ確保も連動して変わるか
+CREATE STATISTICS stats_orders_day ON (date_trunc('day', ordered_at, 'Asia/Tokyo')) FROM orders;
+ANALYZE orders;
