@@ -1,0 +1,60 @@
+import { Pressable, StyleSheet, View } from "react-native";
+import { ProductImage } from "@/components/product-image/product-image";
+import { QuantityStepper } from "@/components/quantity-stepper/quantity-stepper";
+import { ThemedText } from "@/components/themed-text/themed-text";
+import { CartItem, useCart } from "@/stores/cart";
+import { colors, spacing } from "@/theme";
+import { formatPrice } from "@/utils/format-price";
+
+export function CartLine({ item }: { item: CartItem }) {
+  const setQuantity = useCart((s) => s.setQuantity);
+  const remove = useCart((s) => s.remove);
+
+  return (
+    <View style={styles.row}>
+      <ProductImage productId={item.productId} size={72} />
+      <View style={styles.info}>
+        <ThemedText variant="subhead" color="label" numberOfLines={2}>
+          {item.name}
+        </ThemedText>
+        <ThemedText variant="headline">{formatPrice(item.priceJpy)}</ThemedText>
+        <View style={styles.controls}>
+          <QuantityStepper
+            value={item.quantity}
+            max={item.stock}
+            onChange={(next) => setQuantity(item.productId, next)}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => remove(item.productId)}
+            style={({ pressed }) => pressed && { opacity: 0.6 }}
+          >
+            <ThemedText variant="subhead" color="destructive">
+              削除
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.separator,
+  },
+  info: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  controls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.xs,
+  },
+});
