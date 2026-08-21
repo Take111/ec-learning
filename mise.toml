@@ -68,3 +68,8 @@ run = "mise exec -- go run ./cmd/api"
 description = "SQLから型付きGoコードを生成(api/internal/db/)"
 dir = "api"
 run = "mise exec -- sqlc generate"
+
+[tasks.api-test]
+description = "APIの統合テスト(実DBが必要: mise run up 済みであること)"
+dir = "api"
+run = "mise exec -- go test ./... -count=1 -v"
