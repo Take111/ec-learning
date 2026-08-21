@@ -7,6 +7,9 @@ import { Color } from "expo-router";
 //   (静的トークンからは参照できなくなる境界に注意)。
 // 前提: default(web)はライト固定。web は開発プレビュー用途のため。
 //   web でもダーク対応するなら useColorScheme ベースの palette に作り直す。
+// 前提: Android の dynamic 色はモジュール評価時のスナップショット(実行中のテーマ
+//   変更に追従しない)。本プロジェクトは iOS 優先のため許容 — Android を一級対応
+//   するときは colors を useColors() フックに変えて追従させる。
 export const colors = {
   label: Platform.select({
     ios: Color.ios.label,
@@ -44,6 +47,17 @@ export const colors = {
     ios: Color.ios.systemRed,
     android: Color.android.dynamic.error,
     default: "#ff3b30",
+  })!,
+  // 注文ステータス用: 完了系(delivered)と進行系(shipped)を別色相にする。
+  // Android の dynamic パレットに緑/ティール系のセマンティックが無いため、
+  // Android/web は iOS システム色相当の固定値でフォールバック
+  success: Platform.select({
+    ios: Color.ios.systemGreen,
+    default: "#34c759",
+  })!,
+  info: Platform.select({
+    ios: Color.ios.systemTeal,
+    default: "#30b0c7",
   })!,
   // アクセント面の上の文字は両モードで白固定(意図的な非セマンティック)
   onAccent: "#ffffff",

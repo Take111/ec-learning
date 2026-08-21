@@ -1,6 +1,6 @@
 import { Image, ImageStyle } from "expo-image";
 import { StyleProp } from "react-native";
-import { colors, radius } from "@/theme";
+import { colors, motion, radius } from "@/theme";
 import { productImageUrl } from "@/utils/product-image";
 
 // 商品画像の表示を1箇所に集約(一覧・詳細で使用)。
@@ -29,7 +29,7 @@ export function ProductImage({
         style,
       ]}
       contentFit="cover"
-      transition={150}
+      transition={motion.fast} // フェードイン時間もモーショントークンで統一
       recyclingKey={String(productId)}
     />
   );

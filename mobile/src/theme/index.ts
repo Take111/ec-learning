@@ -1,4 +1,5 @@
 export { colors } from "./colors";
+export { interaction } from "./interaction";
 export { spacing } from "./spacing";
 export { type } from "./typography";
 export { radius } from "./radius";

@@ -14,7 +14,7 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
 export const orderStatusColor: Record<OrderStatus, keyof typeof colors> = {
   pending: "secondaryLabel",
   paid: "accent",
-  shipped: "accent",
-  delivered: "label",
+  shipped: "info", // paid と同色だと一覧で区別不能(C-3.5 監査での指摘)
+  delivered: "success",
   cancelled: "destructive",
 };

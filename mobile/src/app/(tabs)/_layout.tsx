@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { SfSymbol } from "@/components/sf-symbol/sf-symbol";
 import { cartCount, useCart } from "@/stores/cart";
 import { colors } from "@/theme";
 
@@ -13,7 +13,7 @@ export default function TabsLayout() {
         options={{
           title: "商品",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="storefront-outline" color={color} size={size} />
+            <SfSymbol name="storefront" color={color} size={size} />
           ),
         }}
       />
@@ -23,7 +23,7 @@ export default function TabsLayout() {
           title: "カート",
           tabBarBadge: count > 0 ? count : undefined,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart-outline" color={color} size={size} />
+            <SfSymbol name="cart" color={color} size={size} />
           ),
         }}
       />
@@ -32,7 +32,7 @@ export default function TabsLayout() {
         options={{
           title: "注文履歴",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt-outline" color={color} size={size} />
+            <SfSymbol name="receipt" color={color} size={size} />
           ),
         }}
       />

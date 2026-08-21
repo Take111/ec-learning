@@ -47,7 +47,7 @@ export function ProductList() {
         numColumns={2}
         columnWrapperStyle={styles.column}
         contentContainerStyle={styles.content}
-        renderItem={({ item }) => <ProductCard product={item} />}
+        renderItem={({ item, index }) => <ProductCard product={item} index={index} />}
         onEndReached={() => {
           if (productsQuery.hasNextPage && !productsQuery.isFetchingNextPage) {
             productsQuery.fetchNextPage();

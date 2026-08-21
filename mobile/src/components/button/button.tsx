@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ViewStyle,
 } from "react-native";
-import { colors, radius, spacing } from "@/theme";
+import { colors, interaction, radius, spacing } from "@/theme";
 import { ThemedText } from "@/components/themed-text/themed-text";
 
 // バリアントは実際の画面が必要としたときだけ足す(現時点: 注文確定=primary、数量操作=secondary)
@@ -43,7 +43,7 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         styles.sizes[size],
-        { backgroundColor, opacity: disabled ? 0.4 : pressed ? 0.7 : 1 },
+        { backgroundColor, opacity: disabled ? interaction.disabled : pressed ? interaction.pressed : 1 },
         style, // 呼び出し側の上書きはレイアウトのみ(色を変えたくなったらバリアント不足のサイン)
       ]}
     >

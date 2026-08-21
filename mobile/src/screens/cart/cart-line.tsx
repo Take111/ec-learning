@@ -3,7 +3,7 @@ import { ProductImage } from "@/components/product-image/product-image";
 import { QuantityStepper } from "@/components/quantity-stepper/quantity-stepper";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { CartItem, useCart } from "@/stores/cart";
-import { colors, spacing } from "@/theme";
+import { colors, interaction, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 
 export function CartLine({ item }: { item: CartItem }) {
@@ -17,7 +17,9 @@ export function CartLine({ item }: { item: CartItem }) {
         <ThemedText variant="subhead" color="label" numberOfLines={2}>
           {item.name}
         </ThemedText>
-        <ThemedText variant="headline">{formatPrice(item.priceJpy)}</ThemedText>
+        <ThemedText variant="headline" tabular>
+          {formatPrice(item.priceJpy)}
+        </ThemedText>
         <View style={styles.controls}>
           <QuantityStepper
             value={item.quantity}
@@ -27,7 +29,8 @@ export function CartLine({ item }: { item: CartItem }) {
           <Pressable
             accessibilityRole="button"
             onPress={() => remove(item.productId)}
-            style={({ pressed }) => pressed && { opacity: 0.6 }}
+            hitSlop={12} // テキストリンクでも44pt相当のタッチターゲットを確保
+            style={({ pressed }) => pressed && { opacity: interaction.pressed }}
           >
             <ThemedText variant="subhead" color="destructive">
               削除

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Stack, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useMutation } from "@tanstack/react-query";
 import { placeOrder } from "@/api/client";
@@ -8,12 +8,14 @@ import { Button } from "@/components/button/button";
 import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { DEMO_ADDRESS, DEMO_ADDRESS_ID, estimateShippingJpy } from "@/constants";
+import { useBottomInset } from "@/hooks/use-bottom-inset";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, radius, spacing } from "@/theme";
+import { colors, interaction, radius, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 
 export function Checkout() {
   const router = useRouter();
+  const contentBottom = useBottomInset(spacing.md) + spacing.md;
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
   const subtotal = cartSubtotal(items);
@@ -44,7 +46,26 @@ export function Checkout() {
   });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={[styles.content, { paddingBottom: contentBottom }]}
+    >
+      {/* HIG: モーダルには明示的な離脱手段を置く(スワイプだけに頼らない) */}
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={({ pressed }) => pressed && { opacity: interaction.pressed }}
+            >
+              <ThemedText color="accent">キャンセル</ThemedText>
+            </Pressable>
+          ),
+        }}
+      />
       <Section title="配送先">
         <ThemedText variant="body">{DEMO_ADDRESS.name}</ThemedText>
         <ThemedText variant="subhead">

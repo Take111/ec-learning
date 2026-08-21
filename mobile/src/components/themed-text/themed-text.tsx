@@ -14,15 +14,23 @@ const defaultColor: Record<keyof typeof type, keyof typeof colors> = {
 export function ThemedText({
   variant = "body",
   color,
+  tabular,
   style,
   ...props
 }: TextProps & {
   variant?: keyof typeof type;
   color?: keyof typeof colors;
+  /** 金額・カウンタなど桁が動く数値に指定(等幅数字で揃える) */
+  tabular?: boolean;
 }) {
   return (
     <Text
-      style={[type[variant], { color: colors[color ?? defaultColor[variant]] }, style]}
+      style={[
+        type[variant],
+        { color: colors[color ?? defaultColor[variant]] },
+        tabular && { fontVariant: ["tabular-nums" as const] },
+        style,
+      ]}
       {...props}
     />
   );

@@ -6,7 +6,7 @@ import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { estimateShippingJpy, FREE_SHIPPING_LINE_JPY } from "@/constants";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, spacing } from "@/theme";
+import { colors, shadows, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 import { CartLine } from "./cart-line";
 
@@ -62,7 +62,9 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.md,
     gap: spacing.sm,
+    backgroundColor: colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.separator,
+    boxShadow: shadows.card,
   },
 });
