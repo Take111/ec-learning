@@ -53,11 +53,22 @@ func createFixtures(t *testing.T, pool *pgxpool.Pool, stock int32) fixtures {
 		f.userID).Scan(&f.addressID); err != nil {
 		t.Fatalf("address: %v", err)
 	}
+	// カテゴリはフィクスチャが自前で作る(素のDBで走るCIでも成立する自己完結性。
+	// 既存データの min(id) に依存すると、マイグレーション直後の空DBで壊れる)
+	var childCategoryID int64
+	if err := pool.QueryRow(ctx,
+		`WITH parent AS (
+		   INSERT INTO categories (name) VALUES ('テスト親カテゴリ') RETURNING id
+		 )
+		 INSERT INTO categories (name, parent_id)
+		 SELECT 'テスト子カテゴリ', id FROM parent RETURNING id`).Scan(&childCategoryID); err != nil {
+		t.Fatalf("category: %v", err)
+	}
 	if err := pool.QueryRow(ctx,
 		`INSERT INTO products (category_id, name, price_jpy, stock, is_active)
-		 VALUES ((SELECT min(id) FROM categories WHERE parent_id IS NOT NULL), 'テスト商品', 1000, $1, true)
+		 VALUES ($2, 'テスト商品', 1000, $1, true)
 		 RETURNING id`,
-		stock).Scan(&f.productID); err != nil {
+		stock, childCategoryID).Scan(&f.productID); err != nil {
 		t.Fatalf("product: %v", err)
 	}
 	t.Cleanup(func() {

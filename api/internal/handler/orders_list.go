@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -33,6 +34,7 @@ func (h *Orders) ListByUser(w http.ResponseWriter, r *http.Request) {
 		PageSize:        int32(limit),
 	})
 	if err != nil {
+		log.Printf("GET /orders internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal_error", nil)
 		return
 	}

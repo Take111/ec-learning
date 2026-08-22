@@ -5,7 +5,8 @@
 node = "22" # faker / tsx / Expo 用。システムの v18 に依存しない
 pnpm = "10" # フェーズC(mobile)のパッケージマネージャ。グローバルの pnpm に依存せず固定
 go = "1.25" # フェーズB(API)用。global の go に依存せずプロジェクトで固定
-sqlc = "latest"
+golangci-lint = "2" # フェーズD(CI)用。CIとローカルで同じバージョンを使う
+sqlc = "1.31.1" # 生成物をコミットする性質上、版が動くとCIの乖離チェックが誤爆する — 厳密固定
 
 [env]
 # タスク内シェルの PATH では /usr/local/bin/node (v18) が mise の node に勝つ。

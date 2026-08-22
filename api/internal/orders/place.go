@@ -6,6 +6,7 @@ package orders
 import (
 	"context"
 	"errors"
+	"math"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -47,6 +48,13 @@ type Result struct {
 
 var ErrInvalidAddress = errors.New("address not found for user")
 
+// キーは衝突したが user スコープの既存注文が見つからない = 他人のキーとの衝突。
+// 注文内容は返さず、ハンドラで 409 idempotency_key_conflict に写像する
+var ErrIdempotencyKeyConflict = errors.New("idempotency key conflict")
+
+// 合計が int32(orders.total_jpy の型)を超える注文は作らせない
+var ErrTotalTooLarge = errors.New("total too large")
+
 type InsufficientStockError struct{ ProductID int64 }
 
 func (e *InsufficientStockError) Error() string {
@@ -65,7 +73,8 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 		return Result{}, err
 	}
 	// Commit 済みなら Rollback は no-op。エラーパスでの戻し忘れを仕組みで防ぐ定石
-	defer tx.Rollback(ctx)
+	// Commit 成功後の Rollback は ErrTxClosed を返すだけ(pgx の定石として意図的に無視)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	q := db.New(tx)
 
@@ -78,8 +87,20 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// 0行は「キー衝突」か「住所不正」の2択。既存注文の有無で見分ける
-		existing, err2 := q.GetOrderByIdempotencyKey(ctx, in.IdempotencyKey)
+		existing, err2 := q.GetOrderByIdempotencyKey(ctx, db.GetOrderByIdempotencyKeyParams{
+			IdempotencyKey: in.IdempotencyKey,
+			UserID:         in.UserID,
+		})
 		if errors.Is(err2, pgx.ErrNoRows) {
+			// 自分の注文としては見つからない。キー自体が存在するなら
+			// 「他人のキーと衝突」であり、住所不正と区別して返す
+			exists, err3 := q.IdempotencyKeyExists(ctx, in.IdempotencyKey)
+			if err3 != nil {
+				return Result{}, err3
+			}
+			if exists {
+				return Result{}, ErrIdempotencyKeyConflict
+			}
 			return Result{}, ErrInvalidAddress
 		}
 		if err2 != nil {
@@ -93,8 +114,9 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 		return Result{}, err
 	}
 
-	// 2. 明細ごとに在庫引き当て(アトミック)+ スナップショット価格で明細登録
-	var subtotal int32
+	// 2. 明細ごとに在庫引き当て(アトミック)+ スナップショット価格で明細登録。
+	// 集計は int64: items≤100 × quantity≤999 でも高額商品なら int32 を超え得る
+	var subtotal int64
 	for _, it := range in.Items {
 		price, err := q.DecrementStock(ctx, db.DecrementStockParams{
 			ProductID: it.ProductID,
@@ -115,15 +137,21 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 		}); err != nil {
 			return Result{}, err
 		}
-		subtotal += price * it.Quantity
+		subtotal += int64(price) * int64(it.Quantity)
 	}
 
 	// 3. 金額はサーバーが決定する
-	fee := int32(shippingFeeJpy)
+	fee := int64(shippingFeeJpy)
 	if subtotal >= freeShippingLine {
 		fee = 0
 	}
-	total := subtotal + fee
+	total64 := subtotal + fee
+	// orders.total_jpy は int32。溢れる注文は作らせない(負や小さい正への wrap 防止)
+	if total64 > math.MaxInt32 {
+		return Result{}, ErrTotalTooLarge
+	}
+	total := int32(total64)
+	feeJpy := int32(fee) // total64 のガードを通っていれば fee も安全に収まる
 
 	if in.ExpectedTotalJpy != nil && *in.ExpectedTotalJpy != total {
 		return Result{}, &PriceMismatchError{Expected: *in.ExpectedTotalJpy, Actual: total}
@@ -131,7 +159,7 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 
 	// 4. 確定UPDATE(同一Tx内なのでコミットまで外からは見えない)
 	if err := q.FinalizeOrder(ctx, db.FinalizeOrderParams{
-		ID: created.ID, TotalJpy: total, ShippingFeeJpy: fee,
+		ID: created.ID, TotalJpy: total, ShippingFeeJpy: feeJpy,
 	}); err != nil {
 		return Result{}, err
 	}
@@ -140,5 +168,5 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 		return Result{}, err
 	}
 	// Status は CreateOrder の RETURNING 由来(DBが唯一の情報源。Goに'pending'を二重定義しない)
-	return Result{OrderID: created.ID, Status: created.Status, TotalJpy: total, ShippingFeeJpy: fee}, nil
+	return Result{OrderID: created.ID, Status: created.Status, TotalJpy: total, ShippingFeeJpy: feeJpy}, nil
 }

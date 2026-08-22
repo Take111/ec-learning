@@ -7,6 +7,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -39,6 +40,8 @@ func (h *Orders) Place(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1MB あれば items 100件は余裕。巨大ボディの読み込ませ攻撃をここで遮断
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var req placeOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json", nil)
@@ -48,10 +51,16 @@ func (h *Orders) Place(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing_required_fields", nil)
 		return
 	}
+	// 上限は業務由来(1注文100明細・各999個)。無制限だと1リクエストで
+	// トランザクション内クエリを大量発行され、行ロックの長期保持を許してしまう
+	if len(req.Items) > 100 {
+		writeError(w, http.StatusBadRequest, "too_many_items", nil)
+		return
+	}
 	items := make([]orders.Item, 0, len(req.Items))
 	seen := make(map[int64]bool, len(req.Items))
 	for _, it := range req.Items {
-		if it.ProductID <= 0 || it.Quantity <= 0 {
+		if it.ProductID <= 0 || it.Quantity <= 0 || it.Quantity > 999 {
 			writeError(w, http.StatusBadRequest, "invalid_item", nil)
 			return
 		}
@@ -99,7 +108,15 @@ func (h *Orders) Place(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "price_changed", map[string]any{
 			"expected_total_jpy": priceErr.Expected, "actual_total_jpy": priceErr.Actual,
 		})
+	case errors.Is(err, orders.ErrIdempotencyKeyConflict):
+		// キーは衝突したが自分の注文ではない(他人のキー or user_id 取り違え)。
+		// 注文の中身は一切返さない
+		writeError(w, http.StatusConflict, "idempotency_key_conflict", nil)
+	case errors.Is(err, orders.ErrTotalTooLarge):
+		writeError(w, http.StatusUnprocessableEntity, "total_too_large", nil)
 	default:
+		// コードは固定文字列のみ返し、詳細はサーバーログへ(内部情報の露出防止と両立)
+		log.Printf("POST /orders internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal_error", nil)
 	}
 }

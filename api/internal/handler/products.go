@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"errors"
 	"net/http"
 	"strconv"
@@ -44,6 +45,7 @@ func (h *Products) List(w http.ResponseWriter, r *http.Request) {
 		PageSize:        int32(limit),
 	})
 	if err != nil {
+		log.Printf("products internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal_error", nil)
 		return
 	}
@@ -83,6 +85,7 @@ func (h *Products) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		log.Printf("products internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal_error", nil)
 		return
 	}

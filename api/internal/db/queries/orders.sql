@@ -42,11 +42,17 @@ RETURNING id, status;
 
 -- name: GetOrderByIdempotencyKey :one
 -- ■ 要件
---   - idempotency_key($1) で既存注文を1行取得(id, status, total_jpy を返す)
---   - リトライ吸収の応答(200で既存注文を返す)に使う
+--   - idempotency_key で既存注文を1行取得(リトライ吸収の200応答に使う)
+--   - user_id でもスコープする: 他人のキーを知っていても注文内容
+--     (total等)を読めない(仕組みで安全。認証導入前の暫定防衛でもある)
 SELECT id, status, total_jpy, shipping_fee_jpy
 FROM orders
-WHERE idempotency_key = $1;
+WHERE idempotency_key = sqlc.arg(idempotency_key) AND user_id = sqlc.arg(user_id);
+
+-- name: IdempotencyKeyExists :one
+-- キー衝突が「自分のリトライ」でなかった場合に、住所不正と区別するための存在確認。
+-- 注文の中身は返さない(存在の有無だけ)
+SELECT EXISTS(SELECT 1 FROM orders WHERE idempotency_key = $1);
 
 
 -- name: DecrementStock :one

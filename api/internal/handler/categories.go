@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,6 +18,7 @@ type Categories struct {
 func (h *Categories) List(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.New(h.Pool).ListCategories(r.Context())
 	if err != nil {
+		log.Printf("GET /categories internal error: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal_error", nil)
 		return
 	}

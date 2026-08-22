@@ -5,6 +5,7 @@ export const DEMO_USER_ID = 1;
 export const DEMO_ADDRESS_ID = 1;
 
 // DEMO_ADDRESS_ID=1 の実データ(user_addresses)の表示用複製。
+// 氏名・住所は faker(jaロケール・シード固定)による架空データ(「南蒼市」は実在しない)。
 // GET /addresses は無い(スコープ外)ため画面はこれを表示する — DB側を変えたらここも直す
 export const DEMO_ADDRESS = {
   name: "三上 瑛太",
