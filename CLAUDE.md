@@ -101,13 +101,24 @@ users, user_addresses, categories, products, orders, order_items, payments, revi
 POST /orders(Tx+冪等+並行実証)、GET /orders(カーソル)、GET /products ×2、GET /categories。
 エラー→HTTP対応表・層深度ルールは `api/internal/handler/` のコメント参照。
 
-## 次にやること(フェーズC: Expo アプリ)
+## フェーズCは完了(2026-08-22)
+
+5画面 + Liquid Glass(NativeTabs)+ エラー系UX(409/冪等リトライをシミュレータで実証)+
+mobile/README.md(スクリーンショット・GIF)。設計判断はコード内の前提コメントに残置。
+
+## 次にやること(フェーズD: CI/CD)
+
+GitHub Actions で lint / test / マイグレーション検証。
+検討事項: migrate.sh を CI でどう走らせるか(gomigrate への置き換え判断を含む —
+フェーズAで自作した理由は「ツールが内部で何をするか先に理解するため」だった)。
+
+## フェーズCの記録(参考)
 
 構成の決定済み事項: pnpm(mise固定)/ タブ+スタック / モック→実APIは `src/api/client.ts` の中身だけ差し替え / 商品画像は picsum.photos(seed=product_id)/ アクセントは systemBlue(ライト・ダーク両対応)。
 
-1. C-0: scaffold + mise タスク + 規約(components/<name>/<name>.tsx)— 完了
-2. C-1: デザイントークン(src/theme)+ 基礎コンポーネント — 完了
-3. C-2: 5画面をモックで構築、agent-device でシミュレータ検証 — 完了
+1. C-0: scaffold + mise タスク + 規約(components/<name>/<name>.tsx)
+2. C-1: デザイントークン(src/theme)+ 基礎コンポーネント
+3. C-2: 5画面をモックで構築、agent-device でシミュレータ検証
 4. C-3: 実API接続(useInfiniteQuery × next_cursor、ApiError 契約)
 5. C-3.4: **development build 化** — Expo Go をやめ expo-dev-client + prebuild +
    expo run:ios に移行(Expo Go の開発UIオーバーレイ排除・ネイティブ依存の自由度・

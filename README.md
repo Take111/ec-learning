@@ -29,8 +29,8 @@
 |---|---|
 | DB | PostgreSQL 18(Docker Compose)— [ADR 001](docs/decisions/001-postgresql-18.md) |
 | データ生成 | TypeScript + @faker-js/faker(偏り入り・シード固定)— [ADR 004](docs/decisions/004-data-distribution.md) |
-| API(フェーズB) | Go + pgx + sqlc(SQLは手書き) |
-| フロント(フェーズC) | React Native + Expo |
+| API(フェーズB) | Go + pgx + sqlc(SQLは手書き・標準ライブラリ net/http) |
+| フロント(フェーズC) | React Native + Expo(NativeTabs / Liquid Glass)— [mobile/README.md](mobile/README.md) |
 | ツール管理 | mise(バージョン・環境変数・タスクを mise.toml に集約) |
 
 ## 動かし方
@@ -44,13 +44,27 @@ mise run load         # \copy 投入 + setval + ANALYZE + 検証
 mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
 ```
 
+## フェーズB・Cのハイライト
+
+- **POST /orders(Go + pgx + sqlc)**: 在庫のアトミック引き当て
+  (`UPDATE ... WHERE stock >= qty`)・冪等キーのINSERT先行・サーバー側価格決定。
+  **並行20ワーカーの攻撃テスト**で在庫マイナス0件、同一冪等キー10連投で作成1件を実証
+- **GET /orders / /products**: ADR 006 のカーソル方式を `next_cursor` としてAPI化。
+  /orders は既存 `(user_id, ordered_at)` インデックスで足りることを EXPLAIN で確認。
+  /products 一覧は**あえて Seq Scan のまま**温存(「実測してから張る」方針の
+  before 値として記録済み — ADR 005)
+- **モバイル(React Native + Expo)**: 5画面 + iOS 26 Liquid Glass。
+  409(価格改定・在庫不足)と通信断の冪等リトライを**ダイアログUXとして実演** —
+  DBの直接操作とAPIプロセス停止で実際にエラーを起こして検証。
+  スクリーンショット・GIF は [mobile/README.md](mobile/README.md)
+
 ## フェーズ構成
 
 - **フェーズA(完了)**: スキーマ → データ生成 → ベースライン計測 → インデックス設計
   → ページネーション → ドキュメント化
-- **フェーズB**: POST /orders(Go)。在庫のアトミック引き当て・冪等キー・
-  サーバー側価格決定という3原則は設計済み(CLAUDE.md)
-- **フェーズC**: React Native の画面から API 接続
+- **フェーズB(完了)**: POST /orders を含むAPI 5本(Go)。在庫のアトミック引き当て・
+  冪等キー・サーバー側価格決定の3原則を実装し、並行テストで実証
+- **フェーズC(完了)**: React Native + Expo の5画面。エラー系UXがAPI設計の実演
 - **フェーズD**: GitHub Actions(lint / test / マイグレーション検証)
 
 ## ADR 一覧
