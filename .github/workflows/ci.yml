@@ -1,0 +1,54 @@
+# フェーズD: CI。ローカルと同じ入口(mise タスク)を CI でも通す —
+# 「操作の入口はすべて mise タスク」(CLAUDE.md)を CI にも適用する。
+# ツールのバージョンは mise.toml が唯一の情報源(CIで別途宣言しない)。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    name: API(lint / migration / test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # マイグレーション検証: 素の PostgreSQL 18 に 001 から全連番を適用できることが
+      # このジョブの検証項目のひとつ(ローカルは適用済みDBなので順序バグはCIでしか出ない)
+      - name: PostgreSQL 起動(docker compose — ローカルと同一構成)
+        run: mise run up
+      - name: マイグレーション全適用
+        run: mise run migrate
+
+      # sqlc の生成物がコミット済みのものと一致するか(SQL と Go の乖離検知)
+      - name: sqlc 生成物の乖離チェック
+        run: |
+          mise run sqlc
+          git diff --exit-code -- api/internal/db
+
+      - name: lint(golangci-lint)
+        working-directory: api
+        run: mise exec -- golangci-lint run ./...
+
+      # place_test.go は実DBへの並行攻撃テスト(在庫マイナス不発生・冪等性の実証)。
+      # フィクスチャは自己完結(カテゴリも自前で作る)なので seed 投入は不要
+      - name: test(実DB・並行テスト込み)
+        run: mise run api-test
+
+  mobile:
+    name: mobile(typecheck / lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 依存インストール(pnpm はCIでは自動で frozen-lockfile)
+        run: mise run mobile-install
+      - name: tsc + expo lint
+        run: mise run mobile-check

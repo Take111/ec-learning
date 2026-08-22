@@ -65,7 +65,8 @@ func Place(ctx context.Context, pool *pgxpool.Pool, in Input) (Result, error) {
 		return Result{}, err
 	}
 	// Commit 済みなら Rollback は no-op。エラーパスでの戻し忘れを仕組みで防ぐ定石
-	defer tx.Rollback(ctx)
+	// Commit 成功後の Rollback は ErrTxClosed を返すだけ(pgx の定石として意図的に無視)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	q := db.New(tx)
 

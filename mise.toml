@@ -5,6 +5,7 @@
 node = "22" # faker / tsx / Expo 用。システムの v18 に依存しない
 pnpm = "10" # フェーズC(mobile)のパッケージマネージャ。グローバルの pnpm に依存せず固定
 go = "1.25" # フェーズB(API)用。global の go に依存せずプロジェクトで固定
+golangci-lint = "2" # フェーズD(CI)用。CIとローカルで同じバージョンを使う
 sqlc = "latest"
 
 [env]
