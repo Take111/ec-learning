@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -44,7 +45,17 @@ func main() {
 	mux.HandleFunc("GET /products/{id}", productsHandler.Detail)
 	mux.HandleFunc("GET /categories", categoriesHandler.List)
 
+	// タイムアウトを明示(ゼロ値=無制限は Slowloris 型のコネクション占有を許す)。
+	// :8080 の全インターフェース待受は実機 Expo からの LAN 接続用に意図的
 	addr := cmp.Or(os.Getenv("API_ADDR"), ":8080")
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      20 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	log.Printf("listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(srv.ListenAndServe())
 }

@@ -3,6 +3,13 @@
 # ツールのバージョンは mise.toml が唯一の情報源(CIで別途宣言しない)。
 name: CI
 
+# GITHUB_TOKEN は read-only に固定(リポジトリ設定に依存させない)。
+# サードパーティ action はタグ参照で許容する判断: このリポの露出シークレットは
+# read-only の GITHUB_TOKEN のみで、タグ差し替え攻撃の実害余地が小さいため。
+# EAS token 等のシークレットを追加する日が来たら SHA ピン + Dependabot に切り替える
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]

@@ -67,6 +67,22 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
 - **フェーズC(完了)**: React Native + Expo の5画面。エラー系UXがAPI設計の実演
 - **フェーズD**: GitHub Actions(lint / test / マイグレーション検証)
 
+## セキュリティ上の限界(意図的なスコープ)
+
+学習スコープを「SQL・API設計」に絞るため認証を実装していません。それに起因して、
+以下は**既知のまま公開**しています(リスクを列挙できること自体を設計判断の一部として扱う):
+
+- **IDOR**: `GET /orders?user_id=N` で任意ユーザーの注文履歴を閲覧可能。
+  `POST /orders` も自己申告の user_id を信頼するため他人名義の注文を作成可能
+- **冪等キーはキーの秘匿性に依存**(キー自体の取得は user_id スコープ+存在確認のみ返す形で防衛済みだが、認証が入るまでは user_id 自体が自己申告)
+- **レートリミットなし**: 在庫の買い占め等が可能
+- **DB資格情報は学習用の平文**(mise.toml — 意図は同ファイルのコメント参照)。
+  ポートは 127.0.0.1 バインドで LAN には露出しない
+- mobile の http:// 通信はローカル開発専用(iOS ATS / Android は release ビルドで平文接続不可)
+
+認証を導入する場合、user_id はセッション由来になり上記の大半は解消する
+(その差し替え座席は `mobile/src/api/client.ts` と handler 層に1箇所ずつコメントで明示済み)。
+
 ## ADR 一覧
 
 1. [PostgreSQL 18 を採用する](docs/decisions/001-postgresql-18.md)

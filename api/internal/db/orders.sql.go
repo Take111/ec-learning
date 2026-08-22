@@ -127,8 +127,13 @@ func (q *Queries) FinalizeOrder(ctx context.Context, arg FinalizeOrderParams) er
 const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
 SELECT id, status, total_jpy, shipping_fee_jpy
 FROM orders
-WHERE idempotency_key = $1
+WHERE idempotency_key = $1 AND user_id = $2
 `
+
+type GetOrderByIdempotencyKeyParams struct {
+	IdempotencyKey pgtype.UUID
+	UserID         int64
+}
 
 type GetOrderByIdempotencyKeyRow struct {
 	ID             int64
@@ -138,10 +143,11 @@ type GetOrderByIdempotencyKeyRow struct {
 }
 
 // ■ 要件
-//   - idempotency_key($1) で既存注文を1行取得(id, status, total_jpy を返す)
-//   - リトライ吸収の応答(200で既存注文を返す)に使う
-func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.UUID) (GetOrderByIdempotencyKeyRow, error) {
-	row := q.db.QueryRow(ctx, getOrderByIdempotencyKey, idempotencyKey)
+//   - idempotency_key で既存注文を1行取得(リトライ吸収の200応答に使う)
+//   - user_id でもスコープする: 他人のキーを知っていても注文内容
+//     (total等)を読めない(仕組みで安全。認証導入前の暫定防衛でもある)
+func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, arg GetOrderByIdempotencyKeyParams) (GetOrderByIdempotencyKeyRow, error) {
+	row := q.db.QueryRow(ctx, getOrderByIdempotencyKey, arg.IdempotencyKey, arg.UserID)
 	var i GetOrderByIdempotencyKeyRow
 	err := row.Scan(
 		&i.ID,
@@ -150,6 +156,19 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey p
 		&i.ShippingFeeJpy,
 	)
 	return i, err
+}
+
+const idempotencyKeyExists = `-- name: IdempotencyKeyExists :one
+SELECT EXISTS(SELECT 1 FROM orders WHERE idempotency_key = $1)
+`
+
+// キー衝突が「自分のリトライ」でなかった場合に、住所不正と区別するための存在確認。
+// 注文の中身は返さない(存在の有無だけ)
+func (q *Queries) IdempotencyKeyExists(ctx context.Context, idempotencyKey pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, idempotencyKeyExists, idempotencyKey)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const insertOrderItem = `-- name: InsertOrderItem :exec

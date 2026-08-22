@@ -14,7 +14,8 @@ services:
       POSTGRES_PASSWORD: ec # ローカル学習用の固定値(mise.toml の [env] と一致させること)
       POSTGRES_DB: ec
     ports:
-      - "5432:5432"
+      # 127.0.0.1 バインド: 資格情報が学習用の平文(ec/ec)なので、LAN には露出させない
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql # 18-alpine のデータ配置に合わせる(PG18からVOLUMEの粒度が変更された)
       - ./data:/data:ro # 生成CSVをコンテナ内 psql の \copy から読むための read-only マウント

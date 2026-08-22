@@ -82,7 +82,7 @@ importers:
         specifier: ~19.2.2
         version: 19.2.18
       agent-device:
-        specifier: ^0.20.10
+        specifier: 0.20.10
         version: 0.20.10
       eslint:
         specifier: ^9.39.5
