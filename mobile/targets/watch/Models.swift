@@ -28,9 +28,3 @@ struct ProductDetail: Decodable {
     let avgRating: Double? // レビュー0件は null(0ではない)— RN 側と同じ契約
     let reviewCount: Int
 }
-
-// 商品画像は picsum.photos(seed=product_id)— mobile/src/utils/product-image.ts と同じ規約。
-// DB に画像カラムを持たないための外部プレースホルダなので、URL の組み立て規則を揃えておく
-func productImageURL(id: Int, size: Int) -> URL {
-    URL(string: "https://picsum.photos/seed/product-\(id)/\(size)/\(size)")!
-}

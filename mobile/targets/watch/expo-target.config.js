@@ -16,7 +16,10 @@ module.exports = {
   deploymentTarget: "9.4",
   icon: "../../assets/images/icon.png",
   colors: {
-    // アクセントは本体アプリと同じ systemBlue 系(ライト/ダーク)に揃える
+    // アクセントは本体アプリと同じ systemBlue 系(ライト/ダーク)。
+    // 前提: RN 側(src/theme/colors.ts)は PlatformColor で実行時に OS から解決するため
+    //   定数を共有できず、ここは静的 hex の複製。ブランドカラーを変えるときは
+    //   colors.ts とここを連動して変える(colors.ts 側のヘッダにも同じ注意がある)
     $accent: { color: "#007AFF", darkColor: "#0A84FF" },
   },
 };

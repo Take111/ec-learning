@@ -11,10 +11,18 @@ enum ApiError: Error {
 }
 
 enum ApiClient {
-    // 前提: ローカル開発専用 URL(RN 側 client.ts の BASE_URL と同じ役割)。
-    //   Watch シミュレータはホストの localhost に直接届く。実機 Watch で試すときは
-    //   ホストマシンの LAN IP に書き換える(例: http://192.168.x.x:8080)
-    static let baseURL = URL(string: "http://localhost:8080")!
+    // 接続先は Info.plist の ECApiBaseURL から読む(RN 側 EXPO_PUBLIC_API_URL に相当する注入点)。
+    // 前提: 切り替えは「コードの書き換え」ではなく「設定の書き換え」で済ませる(仕組みで安全)。
+    //   @bacons/apple-targets は Info.plist へのキー注入 API を持たないため、
+    //   環境変数からの自動注入はできず、静的な plist キーが現状の最深の注入点
+    static let baseURL: URL = {
+        if let raw = Bundle.main.object(forInfoDictionaryKey: "ECApiBaseURL") as? String,
+           let url = URL(string: raw) {
+            return url
+        }
+        // Info.plist に無い場合のフォールバック(ローカル開発の既定)
+        return URL(string: "http://localhost:8080")!
+    }()
 
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder()

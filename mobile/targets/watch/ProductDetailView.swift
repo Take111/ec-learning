@@ -5,30 +5,11 @@ import SwiftUI
 struct ProductDetailView: View {
     let productId: Int
 
-    enum Phase {
-        case loading
-        case loaded(ProductDetail)
-        case failed
-    }
-
-    @State private var phase: Phase = .loading
+    @State private var phase: LoadPhase<ProductDetail> = .loading
 
     var body: some View {
-        Group {
-            switch phase {
-            case .loading:
-                ProgressView()
-            case .failed:
-                VStack(spacing: 8) {
-                    Text("読み込みに失敗しました")
-                        .font(.footnote)
-                    Button("再試行") {
-                        Task { await load() }
-                    }
-                }
-            case .loaded(let product):
-                detail(product)
-            }
+        PhaseView(phase: phase, retry: { Task { await load() } }) { product in
+            detail(product)
         }
         .navigationTitle("詳細")
         .task { await load() }
@@ -37,13 +18,9 @@ struct ProductDetailView: View {
     private func detail(_ product: ProductDetail) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                AsyncImage(url: productImageURL(id: product.id, size: 300)) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.2)
-                }
-                .aspectRatio(4 / 3, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                ProductImage(productId: product.id, pixelSize: 300)
+                    .aspectRatio(4 / 3, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 Text(product.name)
                     .font(.headline)
