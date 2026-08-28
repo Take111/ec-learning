@@ -4,9 +4,10 @@
 name: CI
 
 # GITHUB_TOKEN は read-only に固定(リポジトリ設定に依存させない)。
-# サードパーティ action はタグ参照で許容する判断: このリポの露出シークレットは
-# read-only の GITHUB_TOKEN のみで、タグ差し替え攻撃の実害余地が小さいため。
-# EAS token 等のシークレットを追加する日が来たら SHA ピン + Dependabot に切り替える
+# サードパーティ action は SHA ピンで参照する(ADR 007)。ピンの付与と更新は Renovate
+# (helpers:pinGitHubActionDigests)が PR で行うので、人がハッシュを追いかける運用コストはない。
+# 導入前は「露出シークレットが read-only の GITHUB_TOKEN のみで実害余地が小さい」としてタグ参照を
+# 許容していたが、保守コストがゼロになったので切り替えた(Renovate の初回 PR がマージされるまではタグ参照のまま)
 permissions:
   contents: read
 
@@ -59,3 +60,14 @@ jobs:
         run: mise run mobile-install
       - name: tsc + expo lint
         run: mise run mobile-check
+
+      # Expo SDK 連動パッケージのガード(ADR 007)。Renovate は Expo SDK の互換表を知らないので、
+      # SDK 連動の更新 PR(ブランチ renovate/expo-sdk = renovate.json5 の groupSlug)に限って
+      # 「SDK がいま期待する版か」を expo install --check で検証し、ずれた版が混ざれば赤くする。
+      # 全 PR で走らせない理由: このチェックは Expo 側のパッチ公開のたびに古くなるため、
+      # 無関係な PR や main まで赤くなる(SDK ラインを手で動かすときはローカルで同じタスクを回す)。
+      # exact ピン(react-native / react / reanimated …)は Expo が版を決めるため Renovate の対象外。
+      # その期待が動いたときもこの PR は赤くなる → `npx expo install --fix` を足してからマージする
+      - name: Expo SDK 互換チェック(Renovate の expo-sdk PR のみ)
+        if: startsWith(github.head_ref, 'renovate/expo-sdk')
+        run: mise run mobile-expo-check
