@@ -1,4 +1,4 @@
-# ADR 007: Apple Watch 対応は SwiftUI ネイティブ + API 直接取得(閲覧のみ)
+# ADR 008: Apple Watch 対応は SwiftUI ネイティブ + API 直接取得(閲覧のみ)
 
 - ステータス: 採用
 - 日付: 2026-08-28

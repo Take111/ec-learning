@@ -1,6 +1,6 @@
 import Foundation
 
-// Watch から Go API を直接叩く最小クライアント(ADR 007 の選択肢A)。
+// Watch から Go API を直接叩く最小クライアント(ADR 008 の選択肢A)。
 // 前提: 閲覧のみ(GET 2本)なので、RN 側 client.ts の ApiError 契約(ボディ解釈)や
 //   冪等キーは持ち込まない。Watch に書き込み系を足すことになったら、その時点で
 //   エラー契約・Idempotency-Key を RN 側と同じ形で移植する議論からやり直す

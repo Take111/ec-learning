@@ -31,6 +31,7 @@
 | データ生成 | TypeScript + @faker-js/faker(偏り入り・シード固定)— [ADR 004](docs/decisions/004-data-distribution.md) |
 | API(フェーズB) | Go + pgx + sqlc(SQLは手書き・標準ライブラリ net/http) |
 | フロント(フェーズC) | React Native + Expo(NativeTabs / Liquid Glass)— [mobile/README.md](mobile/README.md) |
+| CI/CD(フェーズD) | GitHub Actions + Renovate(依存更新)— [ADR 007](docs/decisions/007-dependency-updates-renovate.md) |
 | ツール管理 | mise(バージョン・環境変数・タスクを mise.toml に集約) |
 
 ## 動かし方
@@ -65,7 +66,8 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
 - **フェーズB(完了)**: POST /orders を含むAPI 5本(Go)。在庫のアトミック引き当て・
   冪等キー・サーバー側価格決定の3原則を実装し、並行テストで実証
 - **フェーズC(完了)**: React Native + Expo の5画面。エラー系UXがAPI設計の実演
-- **フェーズD**: GitHub Actions(lint / test / マイグレーション検証)
+- **フェーズD(完了)**: GitHub Actions(lint / test / マイグレーション検証)+ Renovate による依存更新
+  (Expo SDK 連動パッケージの扱いが設計の中心 — ADR 007)
 
 ## セキュリティ上の限界(意図的なスコープ)
 
@@ -91,3 +93,4 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
 4. [生成データに現実的な偏りを入れる](docs/decisions/004-data-distribution.md)
 5. [インデックスは実測駆動で張る](docs/decisions/005-indexing-policy.md)
 6. [ページネーションはカーソル方式を正とする](docs/decisions/006-pagination.md)
+7. [依存更新は Renovate に任せる](docs/decisions/007-dependency-updates-renovate.md)

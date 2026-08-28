@@ -1,0 +1,107 @@
+// Renovate 設定(Mend hosted GitHub App で実行)— 設計判断は docs/decisions/007-dependency-updates-renovate.md
+//
+// JSON5 を選んだ理由: 「前提条件をコメントで残す」規約を設定ファイルにも適用するため。
+// 設定を変えたら `mise run renovate-dry-run` で「何を検知し、何を提案するか」を先に見る(PR は作られない)。
+//
+// packageRules は上から順に適用され、後のルールが前のルールを上書きする(groupName など)。
+// 「エコシステム単位の粗いルール → Expo SDK 連動の細かいルール」の順に並べているのはそのため。
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    // Dependency Dashboard / monorepo:expo 等の group / automerge 無効 / major は個別 PR、など Renovate の推奨既定
+    "config:recommended",
+    // GitHub Actions を SHA ピン(バージョンはコメントで併記される)。保守を Renovate がやるので
+    // ci.yml で先送りしていた「シークレット追加時に SHA ピン」のコストがゼロになった
+    "helpers:pinGitHubActionDigests",
+  ],
+
+  "timezone": "Asia/Tokyo",
+  // 週1・月曜早朝にまとめて来る。脆弱性起因の PR はスケジュールを無視して作られる
+  "schedule": ["before 7am on monday"],
+  "labels": ["dependencies"],
+  // 週1の短い窓なので「時間あたり2件」の既定制限は外し、同時オープン数だけで抑える
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 8,
+
+  // 公開直後の悪性バージョンを取り込まない(サプライチェーン対策)。取り下げは数日以内に起きることが多い
+  "minimumReleaseAge": "3 days",
+  // OSV の脆弱性データベースに載った依存は、スケジュール外でも即 PR 化する
+  "osvVulnerabilityAlerts": true,
+
+  // Renovate が pnpm-lock.yaml を再生成するときの pnpm の系を mise.toml と揃える
+  // (ずれると CI の frozen-lockfile インストールで落ちる)。mise.toml の pnpm を上げたらここも上げる
+  "constraints": { "pnpm": "10" },
+  // go.sum を go mod tidy で整える(require の更新だけだと不要行が残る)
+  "postUpdateOptions": ["gomodTidy"],
+
+  "packageRules": [
+    // ---- major は Dependency Dashboard でチェックを入れてから PR が作られる(承認制)。
+    //      node 24 / pnpm 11 / TypeScript 7 / eslint 10 のような大物は「意思決定してから PR」にしてノイズを抑える
+    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },
+
+    // ---- npm(mobile / seed)はアプリなので package.json のレンジ自体を進める。
+    //      既定(update-lockfile)だと lockfile だけ動いて package.json に差分が出ず、何が上がったか読めない
+    { "matchManagers": ["npm"], "rangeStrategy": "bump" },
+
+    // ---- Go(api/go.mod): 実DBの統合テストが叩く範囲。non-major は 1 PR にまとめる
+    { "matchManagers": ["gomod"], "matchUpdateTypes": ["minor", "patch", "digest"], "groupName": "go non-major" },
+    // go directive は Renovate の既定でも更新されないが、「Go の版は mise.toml が唯一の情報源」を明示しておく
+    { "matchManagers": ["gomod"], "matchDepTypes": ["golang"], "enabled": false },
+
+    // ---- mise.toml のツール
+    // go = "1.25" は「1.25.x の最新に追従する」書き方。Renovate は github-tags から "1.27.0" と精度を落として
+    // 書き込もうとする(dry-run で確認)ので、npm 流の x-range として扱わせて "1.27" を保つ。
+    // Go の minor(1.26 / 1.27)は実質メジャー(golangci-lint の対応確認が要る)→ major と同じ承認制
+    { "matchManagers": ["mise"], "matchDepNames": ["go"], "versioning": "npm", "dependencyDashboardApproval": true },
+    // sqlc: 版が動くと生成物(api/internal/db)が変わりうるので単独 PR。CI の乖離チェックで赤くなったら
+    // `mise run sqlc` の再生成コミットを足す(生成物の差分を人が読むのが目的なので自動化しない)
+    { "matchManagers": ["mise"], "matchDepNames": ["sqlc"], "groupName": "sqlc" },
+
+    // ---- mobile の SDK 非管理パッケージ(tanstack / zustand / eslint / typescript / agent-device …)non-major は 1 PR
+    //      (下の Expo SDK ルールが後から上書きするので、ここでは除外しない)
+    { "matchFileNames": ["mobile/package.json"], "matchUpdateTypes": ["minor", "patch"], "groupName": "mobile non-major" },
+
+    // ---- seed(tools/seed): CI では走らない devDeps。non-major 1 PR、マージ前に `mise run seed` で手動確認
+    { "matchFileNames": ["tools/seed/package.json"], "matchUpdateTypes": ["minor", "patch"], "groupName": "seed non-major" },
+
+    // ---- GitHub Actions: SHA ピンの更新(digest)も含めて 1 PR
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
+      "groupName": "github-actions",
+    },
+
+    // ---- PostgreSQL のメジャーは止める。学習の実測基盤(EXPLAIN の挙動)と volume 配置(ADR 001)に直結するため、
+    //      上げるときは ADR を書き直してから手で行う。docker の digest ピンもしない(18-alpine を浮かせておく)
+    { "matchDatasources": ["docker"], "matchDepNames": ["postgres"], "matchUpdateTypes": ["major"], "enabled": false },
+
+    // ---- Expo SDK 連動パッケージ(expo 本体 + node_modules/expo/bundledNativeModules.json に載る集合)
+    //      前提: Renovate は Expo SDK の互換表を知らない。SDK ラインの移動は `npx expo install --fix` で
+    //      SDK 単位に人が行い、Renovate は「~ レンジ内の patch」だけを提案する。
+    //      検証は CI 側: ブランチ名 renovate/expo-sdk のときだけ `expo install --check` が走り、SDK の期待と
+    //      ずれた版が混ざった PR は赤くなる(規律ではなく仕組みで止める)
+    {
+      "matchFileNames": ["mobile/package.json"],
+      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo"],
+      "groupName": "expo-sdk",
+      "groupSlug": "expo-sdk", // → ブランチ名 renovate/expo-sdk(ci.yml の if 条件と対応)
+      "addLabels": ["expo-sdk"],
+    },
+    // minor / major は SDK 単位でしか動かせない。根拠(dry-run 実測): react-native 0.86→0.87、screens ~4.26→~4.27、
+    // safe-area-context ~5.7→~5.9 は semver 上 minor だが、いずれも SDK 57 の期待の外だった
+    {
+      "matchFileNames": ["mobile/package.json"],
+      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo"],
+      "matchUpdateTypes": ["minor", "major"],
+      "enabled": false,
+    },
+    // exact ピン(react 19.2.3 / react-native 0.86.2 / reanimated 4.5.1 / worklets 0.10.1)は Expo が版そのものを
+    // 決めている(bundledNativeModules.json も exact)。patch でも Renovate は触らず、expo install --fix に任せる
+    {
+      "matchFileNames": ["mobile/package.json"],
+      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo"],
+      "matchCurrentValue": "/^[0-9]/",
+      "enabled": false,
+    },
+  ],
+}

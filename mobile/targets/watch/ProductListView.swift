@@ -2,7 +2,7 @@ import SwiftUI
 
 // 商品一覧(先頭1ページ=20件のみ)。
 // 前提: Watch は glanceable な端末なので、RN 側の無限スクロール(next_cursor)は
-//   あえて持ち込まない(ADR 007)。全件を眺めたいユースケースは iPhone 側の役割
+//   あえて持ち込まない(ADR 008)。全件を眺めたいユースケースは iPhone 側の役割
 struct ProductListView: View {
     enum Phase {
         case loading
