@@ -100,3 +100,7 @@ run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild'
 description = "mobile/ の型チェックと lint"
 dir = "mobile"
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run check'
+
+[tasks.renovate-dry-run]
+description = "Renovate をローカルで dry-run し、検知した依存と提案を表で出す(PR は作らない。renovate.json5 を変えたらまずこれ)"
+run = "scripts/renovate-dry-run.sh"
