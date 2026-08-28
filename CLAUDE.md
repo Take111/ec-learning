@@ -31,6 +31,9 @@
   - コンポーネント規約: `components/<name>/<name>.tsx` のディレクトリ単位で作る
     (`<name>.web.tsx` などプラットフォーム分岐ファイルを同居させる余地のため)
 - CI/CD: GitHub Actions
+- AIエージェント: Expo公式スキル([expo/skills](https://github.com/expo/skills))を
+  `.claude/settings.json` の `enabledPlugins`(`expo@claude-plugins-official`)で有効化。
+  リポジトリにチェックイン済みなのでローカル・Web どちらのセッションでも自動ロードされる
 - ツール・タスク管理: **mise**(`mise.toml`)— Node/Goのバージョン固定、PG*環境変数、タスクランナー(`mise run up` など)を1ファイルに集約。操作の入口はすべて mise タスクにする
 
 ## フェーズ構成
