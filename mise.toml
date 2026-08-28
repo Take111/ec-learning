@@ -113,6 +113,22 @@ dir = "mobile"
 # app.config.ts が注入する(Expo CLI が .env.local を自動で読むので mise の [env] には置かない)。
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm exec expo run:ios --device "${EC_IOS_DEVICE:-iPhone 17 Pro}"'
 
+[tasks.mobile-xcode]
+description = "Xcode で mobile/ios/mobile.xcworkspace を開く(.xcodeproj を直接開くと Pods が入らずビルドが失敗する)"
+dir = "mobile"
+# 前提: CocoaPods 構成では Pods は .xcworkspace 側にしか含まれない。.xcodeproj を開いてビルドすると
+# 「module map file …/Expo.modulemap not found」→「No such module 'Expo'」で必ず失敗する(2026-08-28 に実際に発生)。
+# Finder / GitHub Desktop から開くと .xcodeproj を選びがちなので、入口をこのタスクに固定する。
+# ios/ は生成物(CNG)。無ければ prebuild してから開く。Xcode 上の手変更は次の prebuild で消える点に注意
+run = '''
+set -e
+if [ ! -e ios/mobile.xcworkspace ]; then
+  echo "ios/ が無いので prebuild します"
+  PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild
+fi
+xed ios/mobile.xcworkspace
+'''
+
 [tasks.mobile-check]
 description = "mobile/ の型チェックと lint"
 dir = "mobile"
