@@ -113,6 +113,37 @@ dir = "mobile"
 # app.config.ts が注入する(Expo CLI が .env.local を自動で読むので mise の [env] には置かない)。
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm exec expo run:ios --device "${EC_IOS_DEVICE:-iPhone 17 Pro}"'
 
+[tasks.mobile-watch]
+description = "Watch アプリをビルドして、ペアリング済みの Watch シミュレータにインストール・起動(EC_WATCH_UDID で端末指定可)"
+dir = "mobile"
+# 前提: Watch アプリ(targets/watch/、@bacons/apple-targets が prebuild で注入)は iOS アプリに埋め込まれるが、
+# expo run:ios は iPhone 側にしか入れない。Watch シミュレータには watch.app を個別に install する必要がある。
+# ビルド先を ios/build/watch に固定するのは、expo run:ios が使う DerivedData のパスがハッシュ付きで不定なため。
+# -scheme watch ではなく -project/-target watch で単体ビルドする理由: workspace の自動生成スキームは Pods の
+# ExpoModulesJSI 等まで watchsimulator 向けにビルドしようとして失敗する(実測)。watch ターゲットは依存ゼロ。
+# 前提: 「Booted な iPhone と Booted な Watch のペア(active)」が1組必要。無ければ手順を出して止まる。
+#   作り方: xcrun simctl pair <watch udid> <phone udid> → xcrun simctl boot <watch udid>
+# 前提: Watch 側は http://localhost:8080 の Go API を直接叩く(ADR 008)。mise run api-run が先。
+run = '''
+set -e
+if [ ! -e ios/mobile.xcworkspace ]; then echo "ios/ が無いので prebuild します"; PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild; fi
+WATCH="${EC_WATCH_UDID:-$(xcrun simctl list pairs -j | jq -r '.pairs[] | select(.state|startswith("(active")) | select(.watch.state=="Booted" and .phone.state=="Booted") | .watch.udid' | head -1)}"
+if [ -z "$WATCH" ]; then
+  echo "Booted な iPhone/Watch のペアが見つかりません。xcrun simctl list pairs で確認し、"
+  echo "  xcrun simctl pair <watch udid> <phone udid> && xcrun simctl boot <watch udid>"
+  echo "でペアを作ってから再実行してください(EC_WATCH_UDID で直接指定も可)"; exit 1
+fi
+echo "▸ watch ターゲットを単体ビルド(watchsimulator → ios/build/watch)"
+LOG=ios/build/watch-build.log; mkdir -p ios/build
+xcodebuild -project ios/mobile.xcodeproj -target watch -configuration Debug -sdk watchsimulator SYMROOT="$PWD/ios/build/watch" build > "$LOG" 2>&1 \
+  || { echo "ビルド失敗。エラー行:"; grep -E "error:" "$LOG" | sort -u | head -20; echo "(全文: mobile/$LOG)"; exit 1; }
+APP=ios/build/watch/Debug-watchsimulator/watch.app
+BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+echo "▸ install → $WATCH ($BUNDLE_ID)"
+xcrun simctl install "$WATCH" "$APP"
+xcrun simctl launch "$WATCH" "$BUNDLE_ID"
+'''
+
 [tasks.mobile-xcode]
 description = "Xcode で mobile/ios/mobile.xcworkspace を開く(.xcodeproj を直接開くと Pods が入らずビルドが失敗する)"
 dir = "mobile"

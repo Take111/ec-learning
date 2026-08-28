@@ -75,6 +75,7 @@ mise run mobile-install
 mise run mobile-prebuild         # CNG: ios/ は生成物(git管理外)
 cp mobile/.env.local.example mobile/.env.local   # 任意: Apple Team ID など環境依存の値(app.config.ts が注入。シミュレータのみなら不要)
 mise run mobile-ios              # ローカルビルド → iPhone 17 Pro シミュレータで起動(EC_IOS_DEVICE で端末差し替え。slug/scheme は他プロジェクトと衝突しないよう "eclearning" — 理由は mise.toml のコメント)
+mise run mobile-watch            # Watch アプリを単体ビルド → ペアリング済み Watch シミュレータで起動(要: Booted な iPhone/Watch ペア)
 mise run mobile-xcode            # Xcode で開く(必ず .xcworkspace。.xcodeproj だと Pods が入らず失敗)
 mise run mobile-check            # tsc + eslint
 ```
