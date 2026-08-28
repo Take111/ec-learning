@@ -3,6 +3,7 @@ import { cartCount, useCart } from "@/stores/cart";
 
 // JSタブ(react-navigation)ではなく本物の UITabBarController。
 // iOS 26 では Liquid Glass 外観とスクロール時の最小化が無償で付く。
+// web は同居の _layout.web.tsx(ヘッドレスタブ + SiteHeader)に分岐する。
 // 前提: NativeTabs はヘッダーを描画しない — 各タブ配下の Stack がヘッダーを担う。
 //   トリガーは静的であること(動的な増減はナビゲータごと再マウントされ状態が飛ぶ)
 export default function TabsLayout() {

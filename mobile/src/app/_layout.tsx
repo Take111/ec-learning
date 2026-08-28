@@ -6,6 +6,8 @@ import {
   ThemeProvider,
 } from "expo-router/react-navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppDialogHost } from "@/components/app-dialog/app-dialog-host";
+import { SiteHeader } from "@/components/site-header/site-header";
 
 // QueryClient はアプリで1つ(モジュールスコープ生成。コンポーネント内で作ると
 // 再レンダーでキャッシュごと破棄される)
@@ -19,6 +21,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>
       <QueryClientProvider client={queryClient}>
+        {/* web のみ描画される持続ヘッダー(native は null)。詳細・チェックアウトは
+            タブ外のルート Stack 画面なので、サイトの chrome を消さないためにここに置く */}
+        <SiteHeader />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -35,6 +40,9 @@ export default function RootLayout() {
             options={{ title: "注文の確認", presentation: "modal" }}
           />
         </Stack>
+        {/* web のみ: Alert 代替モーダルの描画先(native は null)。オーバーレイが
+            画面全体を覆えるよう、ナビゲータの後(最前面)に置く */}
+        <AppDialogHost />
       </QueryClientProvider>
     </ThemeProvider>
   );
