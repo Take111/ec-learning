@@ -30,7 +30,7 @@
   画面は5本(一覧・詳細・カート[ローカル状態のみ]・注文確定・履歴)
   - コンポーネント規約: `components/<name>/<name>.tsx` のディレクトリ単位で作る
     (`<name>.web.tsx` などプラットフォーム分岐ファイルを同居させる余地のため)
-- CI/CD: GitHub Actions
+- CI/CD: GitHub Actions + Renovate(依存更新。設定は renovate.json5、判断は ADR 007)
 - ツール・タスク管理: **mise**(`mise.toml`)— Node/Goのバージョン固定、PG*環境変数、タスクランナー(`mise run up` など)を1ファイルに集約。操作の入口はすべて mise タスクにする
 
 ## フェーズ構成
@@ -38,7 +38,7 @@
 - **フェーズA**: Docker + スキーマ適用 + fakerでデータ生成 + 100万件クエリの実測(SQLとTSスクリプトで完結。Goは持ち込まない)
 - **フェーズB**: API設計・実装(Go)。POST /orders の設計は確定済み(下記)
 - **フェーズC**: React Native + Expo で5画面のアプリを公開ポートフォリオ品質で構築(エラー系UXがAPI設計の実演)
-- **フェーズD**: 仮のCI/CD(GitHub Actions — lint / test / マイグレーション検証)
+- **フェーズD**: CI/CD(GitHub Actions — lint / test / マイグレーション検証)+ Renovate(依存更新)
 
 ## 公開リポジトリ・ドキュメント方針
 
@@ -106,11 +106,18 @@ POST /orders(Tx+冪等+並行実証)、GET /orders(カーソル)、GET /products
 5画面 + Liquid Glass(NativeTabs)+ エラー系UX(409/冪等リトライをシミュレータで実証)+
 mobile/README.md(スクリーンショット・GIF)。設計判断はコード内の前提コメントに残置。
 
-## 次にやること(フェーズD: CI/CD)
+## フェーズDは完了(2026-08-28)
 
-GitHub Actions で lint / test / マイグレーション検証。
-検討事項: migrate.sh を CI でどう走らせるか(gomigrate への置き換え判断を含む —
-フェーズAで自作した理由は「ツールが内部で何をするか先に理解するため」だった)。
+- CI(PR #1): lint / test / マイグレーション検証を mise タスク経由で実行。migrate.sh は CI でもそのまま使う
+  (gomigrate 置き換えは不要と判断 — 自作30行で CI 要件を満たした)
+- Renovate(ADR 007): hosted App + `renovate.json5`(コメント付き)。運用ルール:
+  - major は Dependency Dashboard でチェックを入れてから PR が作られる(承認制)
+  - Expo SDK 連動パッケージは patch のみ・1グループ(`renovate/expo-sdk`)。そのブランチだけ CI で
+    `expo install --check` が走る。exact ピン(RN / react / reanimated …)は Renovate の対象外なので、
+    その期待が動くとこの PR が赤くなる → `npx expo install --fix` を足してからマージ。SDK ラインの移動も同じコマンドで手動
+  - sqlc の更新 PR は CI の乖離チェックで赤くなる前提 → `mise run sqlc` の再生成コミットを足す
+  - postgres の major は止めている(ADR 001 を書き直してから手で)
+  - 設定を変えたら `mise run renovate-dry-run`(Node 24 を一時使用。PR は作らない)で提案内容を先に見る
 
 ## フェーズCの記録(参考)
 
