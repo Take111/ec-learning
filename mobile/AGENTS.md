@@ -5,7 +5,7 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 ## このプロジェクトの規約(ec-learning フェーズC)
 
 - パッケージマネージャは **pnpm**(mise で固定)。操作はリポジトリルートの mise タスクから:
-  `mise run mobile-install` / `mise run mobile-start` / `mise run mobile-check`
+  `mise run mobile-install` / `mise run mobile-start` / `mise run mobile-ios` / `mise run mobile-check`
 - **コンポーネントは `src/components/<name>/<name>.tsx` のディレクトリ単位で作る**。
   プラットフォーム分岐は同居ファイル(`<name>.web.tsx` 等)で行う。
   前提: `.web.tsx` 分岐が発生し得るため、最初からディレクトリを掘っておく(後からの昇格を避ける)

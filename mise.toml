@@ -96,6 +96,16 @@ description = "ネイティブプロジェクトを生成(CNG: ios/android は�
 dir = "mobile"
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild'
 
+[tasks.mobile-ios]
+description = "iOS をローカルビルドしてシミュレータで起動(development build。追加引数は expo run:ios へ: mise run mobile-ios -- --no-bundler)"
+dir = "mobile"
+# --device を固定する理由: 無指定だと「今 Booted のシミュレータ > Simulator.app の既定端末」の順で選ばれ、
+# 別プロジェクトで iOS 18 以下の端末を開いていると Liquid Glass(iOS 26+)が出ないビルドがそこに入る。
+# 端末名は環境変数で差し替え可(例: EC_IOS_DEVICE="iPhone 17" mise run mobile-ios)。
+# 同名端末が複数ランタイムにある場合、expo は Booted 中のものを優先し、なければ simctl の並び順で最初のもの。
+# 前提: ios/ が無ければ expo run:ios が prebuild を自動実行する(--clean はしないので、config 変更後は mobile-prebuild を先に)
+run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm exec expo run:ios --device "${EC_IOS_DEVICE:-iPhone 17 Pro}"'
+
 [tasks.mobile-check]
 description = "mobile/ の型チェックと lint"
 dir = "mobile"
