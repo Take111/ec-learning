@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@bacons/apple-targets": "~5.0.0",
     "@expo/vector-icons": "^15.1.1",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~57.0.15",

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 前提: ローカル開発専用の ATS 例外。API はホストの http://localhost:8080(平文)なので、
+	     これが無いと watchOS の App Transport Security に遮断される。
+	     LAN IP 経由の実機検証も NSAllowsLocalNetworking の範囲。
+	     本番 API を https で立てるときはこのキーごと削除する -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

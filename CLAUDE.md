@@ -109,6 +109,12 @@ POST /orders(Tx+冪等+並行実証)、GET /orders(カーソル)、GET /products
 5画面 + Liquid Glass(NativeTabs)+ エラー系UX(409/冪等リトライをシミュレータで実証)+
 mobile/README.md(スクリーンショット・GIF)。設計判断はコード内の前提コメントに残置。
 
+## Apple Watch 対応(2026-08-28・閲覧のみ)
+
+RN は watchOS で動かないため、Watch は SwiftUI ネイティブ実装(`mobile/targets/watch/`)。
+`@bacons/apple-targets` で prebuild 時に Xcode ターゲットとして注入し CNG を維持。
+データは Watch から API を直接取得(一覧は先頭1ページのみ)。判断の詳細は ADR 007。
+
 ## 次にやること(フェーズD: CI/CD)
 
 GitHub Actions で lint / test / マイグレーション検証。
