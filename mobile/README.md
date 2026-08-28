@@ -40,6 +40,18 @@ React Native + Expo アプリです。**エラー系UXがこのアプリの見�
 3シナリオとも「DBの価格・在庫を直接操作」「APIプロセスを停止」して実際に発生させ、
 シミュレータ上で再現・検証済み。
 
+## Apple Watch(閲覧のみ)
+
+| 商品一覧 | 商品詳細 |
+|---|---|
+| <img src="docs/screenshots/watch-list.png" width="200" /> | <img src="docs/screenshots/watch-detail.png" width="200" /> |
+| 先頭1ページ(20件)のみ。Watch は glanceable な端末なので無限スクロールは持ち込まない | 価格・在庫(在庫切れは赤)・評価・説明。iPhone 側と同じ `GET /products/:id` を Watch から直接取得 |
+
+React Native は watchOS で動かないため、Watch 側は SwiftUI のネイティブ実装(`targets/watch/`)。
+`@bacons/apple-targets` が prebuild のたびに Xcode ターゲットとして注入するので CNG は維持される。
+JSON 契約は `src/api/types.ts` と 1:1 の Swift 構造体(snake_case はデコーダで吸収)。
+同居方法・取得経路の選択肢と根拠は [ADR 008](../docs/decisions/008-apple-watch-browsing.md)。
+
 ## 技術構成
 
 | 領域 | 選定 | 補足 |
@@ -49,6 +61,7 @@ React Native + Expo アプリです。**エラー系UXがこのアプリの見�
 | データ取得 | TanStack Query | `useInfiniteQuery` × サーバーの `next_cursor`(カーソル方式 [ADR 006](../docs/decisions/006-pagination.md)) |
 | クライアント状態 | zustand | カートのみ(DBにカートを作らない決定) |
 | デザイン | セマンティックカラー + 自作トークン(`src/theme/`) | トークン逸脱の監査: 4件/1,683行・全件意図コメント付き。アクセントは systemBlue |
+| Apple Watch | SwiftUI ネイティブ + `@bacons/apple-targets` | RN は watchOS 非対応。閲覧のみ・API 直接取得([ADR 008](../docs/decisions/008-apple-watch-browsing.md)) |
 | パッケージ管理 | pnpm(mise でバージョン固定) | 操作の入口はリポジトリルートの mise タスク |
 
 ## 設計の要点

@@ -31,6 +31,7 @@
 | データ生成 | TypeScript + @faker-js/faker(偏り入り・シード固定)— [ADR 004](docs/decisions/004-data-distribution.md) |
 | API(フェーズB) | Go + pgx + sqlc(SQLは手書き・標準ライブラリ net/http) |
 | フロント(フェーズC) | React Native + Expo(NativeTabs / Liquid Glass)— [mobile/README.md](mobile/README.md) |
+| Apple Watch(フェーズC拡張) | SwiftUI ネイティブ + @bacons/apple-targets(閲覧のみ・API直接取得)— [ADR 008](docs/decisions/008-apple-watch-browsing.md) |
 | CI/CD(フェーズD) | GitHub Actions + Renovate(依存更新)— [ADR 007](docs/decisions/007-dependency-updates-renovate.md) |
 | ツール管理 | mise(バージョン・環境変数・タスクを mise.toml に集約) |
 
@@ -58,6 +59,9 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
   409(価格改定・在庫不足)と通信断の冪等リトライを**ダイアログUXとして実演** —
   DBの直接操作とAPIプロセス停止で実際にエラーを起こして検証。
   スクリーンショット・GIF は [mobile/README.md](mobile/README.md)
+- **Apple Watch(SwiftUI)**: RN が動かない watchOS で商品の一覧・詳細を閲覧。
+  `@bacons/apple-targets` で CNG を保ったままターゲットを注入し、Go API を直接取得(ADR 008)。
+  スクリーンショットは [mobile/README.md](mobile/README.md#apple-watch閲覧のみ)
 
 ## フェーズ構成
 
@@ -94,3 +98,4 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
 5. [インデックスは実測駆動で張る](docs/decisions/005-indexing-policy.md)
 6. [ページネーションはカーソル方式を正とする](docs/decisions/006-pagination.md)
 7. [依存更新は Renovate に任せる](docs/decisions/007-dependency-updates-renovate.md)
+8. [Apple Watch 対応は SwiftUI ネイティブ + API 直接取得(閲覧のみ)](docs/decisions/008-apple-watch-browsing.md)

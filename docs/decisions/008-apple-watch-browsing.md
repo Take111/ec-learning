@@ -53,6 +53,7 @@
 
 - `@bacons/apple-targets` の watch タイプは実験的。壊れたら手動追加方式へ退避できる
   よう、Watch 関連コードは `targets/watch/` に完結させてある
-- 実機ビルドには `app.json` の `ios.appleTeamId` の設定が必要(シミュレータは不要)
+- 実機ビルドには `ios.appleTeamId` が必要(シミュレータは不要)。値は `mobile/.env.local` の
+  `EC_APPLE_TEAM_ID` から `app.config.ts` が注入する(公開リポに個人識別子を置かないため app.json には書かない)
 - API が `http://localhost` 平文のため、Watch 側 `Info.plist` に ATS 例外
   (`NSAllowsLocalNetworking`)を置いた。本番 API を https にする際に削除する
