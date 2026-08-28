@@ -16,6 +16,10 @@ import { DEMO_USER_ID } from "@/constants";
 // 前提: ローカル開発専用のURL。iOSシミュレータはホストの localhost に直接届くが、
 //   Androidエミュレータは 10.0.2.2 がホスト。実機で試すときは EXPO_PUBLIC_API_URL に
 //   ホストマシンのLAN IPを渡す(例: EXPO_PUBLIC_API_URL=http://192.168.x.x:8080)
+// 前提(web): default が localhost:8080 を指すのは web も同じだが、ブラウザの fetch は
+//   オリジン(dev server のポート)が異なるため CORS 制約を受ける。Go API 側の CORS 許可が
+//   入るまで web の実API接続は preflight で失敗する(native の fetch には CORS が無い —
+//   この非対称がバックエンド側に CORS 設計を要求する)
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
   Platform.select({
