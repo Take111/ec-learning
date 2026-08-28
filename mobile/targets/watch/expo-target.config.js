@@ -20,6 +20,8 @@ module.exports = {
     // 前提: RN 側(src/theme/colors.ts)は PlatformColor で実行時に OS から解決するため
     //   定数を共有できず、ここは静的 hex の複製。ブランドカラーを変えるときは
     //   colors.ts とここを連動して変える(colors.ts 側のヘッダにも同じ注意がある)
-    $accent: { color: "#007AFF", darkColor: "#0A84FF" },
+    // 注意: キーは { light, dark }(プラグインの DynamicColor 型)。README の例にある
+    //   { color, darkColor } は古く、その形式だと空の colorset が生成される(実測)
+    $accent: { light: "#007AFF", dark: "#0A84FF" },
   },
 };

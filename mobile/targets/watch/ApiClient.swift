@@ -8,6 +8,8 @@ import Foundation
 enum ApiError: Error {
     case http(status: Int)
     case network(Error)
+    // 通信断と契約不一致(サーバー側のJSON変更など)を区別してデバッグできるよう分ける
+    case decoding(Error)
 }
 
 enum ApiClient {
@@ -32,7 +34,9 @@ enum ApiClient {
     }()
 
     static func fetch<T: Decodable>(_ path: String) async throws -> T {
-        let url = baseURL.appending(path: path)
+        // 呼び出し側は "/products" のように先頭スラッシュ付きで渡す(RN 側 client.ts と同じ流儀)。
+        // appending(path:) に "/" 始まりを渡したときの区切り正規化は実装依存なので、ここで除いておく
+        let url = baseURL.appending(path: path.hasPrefix("/") ? String(path.dropFirst()) : path)
         let data: Data
         let response: URLResponse
         do {
@@ -47,7 +51,7 @@ enum ApiClient {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw ApiError.network(error)
+            throw ApiError.decoding(error)
         }
     }
 }

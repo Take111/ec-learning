@@ -18,7 +18,12 @@ struct ProductListView: View {
             }
         }
         .navigationTitle("商品")
-        .task { await load() }
+        .task {
+            // .task は詳細画面から戻るたびに再実行される(表示のたび)。取得済みなら
+            // 再フェッチしない — Watch の電池・通信を守る。明示的な再取得は「再試行」だけ
+            if case .loaded = phase { return }
+            await load()
+        }
     }
 
     private func load() async {
