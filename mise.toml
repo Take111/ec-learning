@@ -96,6 +96,70 @@ description = "ネイティブプロジェクトを生成(CNG: ios/android は�
 dir = "mobile"
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild'
 
+[tasks.mobile-ios]
+description = "iOS をローカルビルドしてシミュレータで起動(development build。追加引数は expo run:ios へ: mise run mobile-ios -- --no-bundler)"
+dir = "mobile"
+# --device を固定する理由: 無指定だと「今 Booted のシミュレータ > Simulator.app の既定端末」の順で選ばれ、
+# 別プロジェクトで iOS 18 以下の端末を開いていると Liquid Glass(iOS 26+)が出ないビルドがそこに入る。
+# 端末名は環境変数で差し替え可(例: EC_IOS_DEVICE="iPhone 17" mise run mobile-ios)。
+# 同名端末が複数ランタイムにある場合、expo は Booted 中のものを優先し、なければ simctl の並び順で最初のもの。
+# 前提: ios/ が無ければ expo run:ios が prebuild を自動実行する(--clean はしないので、config 変更後は mobile-prebuild を先に)
+# 前提: 起動は「exp+<app.json の slug>://expo-development-client/?url=<Metro>」のディープリンクで行われる
+# (expo-dev-client/plugin の getDefaultScheme が slug から生成)。slug が他プロジェクトと同じだと LaunchServices が
+# 別アプリ(例: workout-log の slug "mobile")にリンクを渡し、そのアプリが本プロジェクトの JS バンドルを読んで
+# worklets の JS/ネイティブ不一致で SIGABRT する(2026-08-28 に実際に発生)。bundle id は別でも防げない。
+# → slug と scheme を "eclearning" に固定。create-expo-app 既定の "mobile" に戻さないこと。
+# 前提: 実機ビルド・Watch ターゲットに必要な Apple Team ID は mobile/.env.local の EC_APPLE_TEAM_ID から
+# app.config.ts が注入する(Expo CLI が .env.local を自動で読むので mise の [env] には置かない)。
+run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm exec expo run:ios --device "${EC_IOS_DEVICE:-iPhone 17 Pro}"'
+
+[tasks.mobile-watch]
+description = "Watch アプリをビルドして、ペアリング済みの Watch シミュレータにインストール・起動(EC_WATCH_UDID で端末指定可)"
+dir = "mobile"
+# 前提: Watch アプリ(targets/watch/、@bacons/apple-targets が prebuild で注入)は iOS アプリに埋め込まれるが、
+# expo run:ios は iPhone 側にしか入れない。Watch シミュレータには watch.app を個別に install する必要がある。
+# ビルド先を ios/build/watch に固定するのは、expo run:ios が使う DerivedData のパスがハッシュ付きで不定なため。
+# -scheme watch ではなく -project/-target watch で単体ビルドする理由: workspace の自動生成スキームは Pods の
+# ExpoModulesJSI 等まで watchsimulator 向けにビルドしようとして失敗する(実測)。watch ターゲットは依存ゼロ。
+# 前提: 「Booted な iPhone と Booted な Watch のペア(active)」が1組必要。無ければ手順を出して止まる。
+#   作り方: xcrun simctl pair <watch udid> <phone udid> → xcrun simctl boot <watch udid>
+# 前提: Watch 側は http://localhost:8080 の Go API を直接叩く(ADR 008)。mise run api-run が先。
+run = '''
+set -e
+if [ ! -e ios/mobile.xcworkspace ]; then echo "ios/ が無いので prebuild します"; PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild; fi
+WATCH="${EC_WATCH_UDID:-$(xcrun simctl list pairs -j | jq -r '.pairs[] | select(.state|startswith("(active")) | select(.watch.state=="Booted" and .phone.state=="Booted") | .watch.udid' | head -1)}"
+if [ -z "$WATCH" ]; then
+  echo "Booted な iPhone/Watch のペアが見つかりません。xcrun simctl list pairs で確認し、"
+  echo "  xcrun simctl pair <watch udid> <phone udid> && xcrun simctl boot <watch udid>"
+  echo "でペアを作ってから再実行してください(EC_WATCH_UDID で直接指定も可)"; exit 1
+fi
+echo "▸ watch ターゲットを単体ビルド(watchsimulator → ios/build/watch)"
+LOG=ios/build/watch-build.log; mkdir -p ios/build
+xcodebuild -project ios/mobile.xcodeproj -target watch -configuration Debug -sdk watchsimulator SYMROOT="$PWD/ios/build/watch" build > "$LOG" 2>&1 \
+  || { echo "ビルド失敗。エラー行:"; grep -E "error:" "$LOG" | sort -u | head -20; echo "(全文: mobile/$LOG)"; exit 1; }
+APP=ios/build/watch/Debug-watchsimulator/watch.app
+BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+echo "▸ install → $WATCH ($BUNDLE_ID)"
+xcrun simctl install "$WATCH" "$APP"
+xcrun simctl launch "$WATCH" "$BUNDLE_ID"
+'''
+
+[tasks.mobile-xcode]
+description = "Xcode で mobile/ios/mobile.xcworkspace を開く(.xcodeproj を直接開くと Pods が入らずビルドが失敗する)"
+dir = "mobile"
+# 前提: CocoaPods 構成では Pods は .xcworkspace 側にしか含まれない。.xcodeproj を開いてビルドすると
+# 「module map file …/Expo.modulemap not found」→「No such module 'Expo'」で必ず失敗する(2026-08-28 に実際に発生)。
+# Finder / GitHub Desktop から開くと .xcodeproj を選びがちなので、入口をこのタスクに固定する。
+# ios/ は生成物(CNG)。無ければ prebuild してから開く。Xcode 上の手変更は次の prebuild で消える点に注意
+run = '''
+set -e
+if [ ! -e ios/mobile.xcworkspace ]; then
+  echo "ios/ が無いので prebuild します"
+  PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild
+fi
+xed ios/mobile.xcworkspace
+'''
+
 [tasks.mobile-check]
 description = "mobile/ の型チェックと lint"
 dir = "mobile"

@@ -32,6 +32,8 @@ yarn-error.*
 
 # local env files
 .env*.local
+# ↑ルートの .env* も効いているため、テンプレートだけ明示的に追跡対象へ戻す
+!.env.local.example
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +43,6 @@ example
 # generated native folders
 /ios
 /android
+
+# @bacons/apple-targets が prebuild のたびに expo-target.config.js から再生成する生成物
+targets/watch/Assets.xcassets/
