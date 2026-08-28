@@ -100,3 +100,12 @@ run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild'
 description = "mobile/ の型チェックと lint"
 dir = "mobile"
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run check'
+
+[tasks.mobile-expo-check]
+description = "mobile/ の依存が Expo SDK の期待する版か検証(SDK 連動の更新 PR で CI が走らせる。ずれていたら npx expo install --fix)"
+dir = "mobile"
+run = 'PATH="$EC_TOOL_PATH:$PATH" CI=1 pnpm exec expo install --check'
+
+[tasks.renovate-dry-run]
+description = "Renovate をローカルで dry-run し、検知した依存と提案を表で出す(PR は作らない。renovate.json5 を変えたらまずこれ)"
+run = "scripts/renovate-dry-run.sh"
