@@ -73,7 +73,7 @@ mise run api-run                 # Go API(:8080)
 # モバイル
 mise run mobile-install
 mise run mobile-prebuild         # CNG: ios/ は生成物(git管理外)
-mise run mobile-ios              # ローカルビルド → iPhone 17 Pro シミュレータで起動(EC_IOS_DEVICE で端末差し替え)
+mise run mobile-ios              # ローカルビルド → iPhone 17 Pro シミュレータで起動(EC_IOS_DEVICE で端末差し替え。slug/scheme は他プロジェクトと衝突しないよう "eclearning" — 理由は mise.toml のコメント)
 mise run mobile-check            # tsc + eslint
 ```
 
