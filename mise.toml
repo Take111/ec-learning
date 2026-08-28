@@ -109,6 +109,8 @@ dir = "mobile"
 # 別アプリ(例: workout-log の slug "mobile")にリンクを渡し、そのアプリが本プロジェクトの JS バンドルを読んで
 # worklets の JS/ネイティブ不一致で SIGABRT する(2026-08-28 に実際に発生)。bundle id は別でも防げない。
 # → slug と scheme を "eclearning" に固定。create-expo-app 既定の "mobile" に戻さないこと。
+# 前提: 実機ビルド・Watch ターゲットに必要な Apple Team ID は mobile/.env.local の EC_APPLE_TEAM_ID から
+# app.config.ts が注入する(Expo CLI が .env.local を自動で読むので mise の [env] には置かない)。
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm exec expo run:ios --device "${EC_IOS_DEVICE:-iPhone 17 Pro}"'
 
 [tasks.mobile-check]

@@ -32,6 +32,8 @@ yarn-error.*
 
 # local env files
 .env*.local
+# ↑ルートの .env* も効いているため、テンプレートだけ明示的に追跡対象へ戻す
+!.env.local.example
 
 # typescript
 *.tsbuildinfo
