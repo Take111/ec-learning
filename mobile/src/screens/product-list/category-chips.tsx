@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Category } from "@/api/types";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { colors, interaction, radius, spacing } from "@/theme";
+import { isHovered } from "@/utils/pressable-hovered";
 
 // 大分類→子カテゴリの2段チップ(設計判断: APIは子カテゴリ単位のみ対応のため、
 // 大分類は「子チップを出すための入口」であり、それ自体では絞り込まない)
@@ -82,10 +83,12 @@ function Chip({
       accessibilityRole="button"
       onPress={onPress}
       hitSlop={4} // 視覚高さ約36pt + 4*2 で44ptのタッチターゲットを確保(HIG)
-      style={({ pressed }) => [
+      style={(state) => [
         styles.chip,
         selected && styles.chipSelected,
-        pressed && { opacity: interaction.pressed },
+        state.pressed
+          ? { opacity: interaction.pressed }
+          : isHovered(state) && { opacity: interaction.hovered },
       ]}
     >
       <ThemedText variant="subhead" color={selected ? "onAccent" : "label"} numberOfLines={1}>
@@ -109,6 +112,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
     backgroundColor: colors.secondaryBackground,
+    cursor: "pointer",
   },
   chipSelected: {
     backgroundColor: colors.accent,

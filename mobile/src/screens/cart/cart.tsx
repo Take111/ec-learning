@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, Platform, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/button/button";
 import { EmptyState } from "@/components/empty-state/empty-state";
@@ -6,7 +6,7 @@ import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { estimateShippingJpy, FREE_SHIPPING_LINE_JPY } from "@/constants";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, spacing, surfaces } from "@/theme";
+import { colors, contentWidth, spacing, surfaces } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 import { CartLine } from "./cart-line";
 
@@ -64,6 +64,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.md,
+    // web は明細の読みやすい幅で中央寄せ(native では no-op)
+    ...Platform.select({
+      web: {
+        width: "100%" as const,
+        maxWidth: contentWidth.narrow,
+        marginHorizontal: "auto" as const,
+      },
+    }),
   },
   summary: {
     gap: spacing.sm,
