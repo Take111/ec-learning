@@ -1,0 +1,7 @@
+{
+  "name": "order-live-activity",
+  "version": "1.0.0",
+  "private": true,
+  "description": "注文 Live Activity を JS から開始・更新・終了するローカル Expo Module(iOS のみ)",
+  "main": "index.ts"
+}

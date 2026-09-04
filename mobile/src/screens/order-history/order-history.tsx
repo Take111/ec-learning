@@ -1,7 +1,10 @@
+import { useCallback } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { listOrders } from "@/api/client";
 import { EmptyState } from "@/components/empty-state/empty-state";
+import { endOrderLiveActivities } from "@/live-activity/order-live-activity";
 import { colors, contentWidth, spacing } from "@/theme";
 import { OrderRow } from "./order-row";
 
@@ -16,6 +19,14 @@ export function OrderHistory() {
   });
 
   const orders = query.data?.pages.flatMap((p) => p.orders) ?? [];
+
+  // 履歴を開いた = 注文を確認したとみなし、注文の Live Activity を終える(iOS 以外は no-op)。
+  // Live Activity のタップ先(eclearning://orders)もここに着地するので、タップで開いても同じ導線になる
+  useFocusEffect(
+    useCallback(() => {
+      void endOrderLiveActivities();
+    }, []),
+  );
 
   return (
     <FlatList

@@ -8,6 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppDialogHost } from "@/components/app-dialog/app-dialog-host";
 import { SiteHeader } from "@/components/site-header/site-header";
+import { useOrderLiveActivityLifecycle } from "@/live-activity/order-live-activity";
 
 // QueryClient はアプリで1つ(モジュールスコープ生成。コンポーネント内で作ると
 // 再レンダーでキャッシュごと破棄される)
@@ -18,6 +19,8 @@ export default function RootLayout() {
   // テーマで配色される。ThemeProvider を張らないと DefaultTheme(ライト固定)に
   // なり、セマンティックカラーで組んだ画面本体とダークモードで乖離する
   const scheme = useColorScheme();
+  // 注文 Live Activity の起動時掃除と復帰時の追いつき(iOS 以外は no-op)
+  useOrderLiveActivityLifecycle();
   return (
     <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>
       <QueryClientProvider client={queryClient}>

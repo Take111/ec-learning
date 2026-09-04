@@ -9,7 +9,8 @@ import { SummaryRow } from "@/components/summary-row/summary-row";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { DEMO_ADDRESS, DEMO_ADDRESS_ID, estimateShippingJpy } from "@/constants";
 import { useBottomInset } from "@/hooks/use-bottom-inset";
-import { cartSubtotal, useCart } from "@/stores/cart";
+import { startOrderLiveActivity } from "@/live-activity/order-live-activity";
+import { cartCount, cartSubtotal, useCart } from "@/stores/cart";
 import { colors, contentWidth, interaction, spacing, surfaces } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 import { isHovered } from "@/utils/pressable-hovered";
@@ -44,7 +45,14 @@ export function Checkout() {
         },
         idempotencyKey,
       ),
-    onSuccess: () => {
+    onSuccess: (order) => {
+      // Live Activity(iOS のみ・他は no-op)。点数は応答に無いので clear() の前にカートから取る。
+      // 表示金額はサーバー確定値(OrderComplete と同じ原則)
+      void startOrderLiveActivity({
+        orderId: order.id,
+        totalJpy: order.total_jpy,
+        itemCount: cartCount(items),
+      });
       clear();
       // アクティブなクエリは invalidate の瞬間にモーダル裏で refetch される
       // (タブ画面はマウントされたまま=アクティブ)。履歴タブに着いた時点で
