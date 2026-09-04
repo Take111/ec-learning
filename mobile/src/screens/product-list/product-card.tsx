@@ -6,19 +6,38 @@ import { ProductImage } from "@/components/product-image/product-image";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { interaction, motion, radius, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
+import { isHovered } from "@/utils/pressable-hovered";
 
 const CARD_IMAGE_SIZE = 160;
 
-export function ProductCard({ product, index }: { product: ProductListItem; index: number }) {
+export function ProductCard({
+  product,
+  index,
+  columns,
+}: {
+  product: ProductListItem;
+  index: number;
+  /** 親グリッドの列数(native は2固定、web は幅に応じて可変)。maxWidth の算出用 */
+  columns: number;
+}) {
   return (
     // グリッドの staggered fade-in はアプリ唯一のモーションの見せ場
     // (delay は行単位で頭打ちにし、追加読み込みページでも間延びさせない)
     <Animated.View
       entering={FadeInUp.duration(motion.base).delay(Math.min(index % 10, 6) * 40)}
-      style={styles.card}
+      // 最終行が列数未満のとき、flex:1 だけだと行幅全部に伸びてしまう。
+      // 1列分の幅で頭打ちにして端数行のカード幅を保つ
+      style={[styles.card, { maxWidth: `${100 / columns}%` }]}
     >
       <Link href={{ pathname: "/products/[id]", params: { id: product.id } }} asChild>
-        <Pressable style={({ pressed }) => pressed && { opacity: interaction.pressed }}>
+        <Pressable
+          style={(state) => [
+            styles.pressable,
+            state.pressed
+              ? { opacity: interaction.pressed }
+              : isHovered(state) && { opacity: interaction.hovered },
+          ]}
+        >
           <View>
             <ProductImage productId={product.id} size={CARD_IMAGE_SIZE} style={styles.image} />
             {product.stock === 0 && (
@@ -45,10 +64,10 @@ export function ProductCard({ product, index }: { product: ProductListItem; inde
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    // numColumns=2 の最終行が1件(奇数件)のとき、flex:1 だけだと行幅全部に
-    // 伸びてしまう。50% で頭打ちにして片側カードの幅を保つ
-    maxWidth: "50%",
     marginBottom: spacing.md,
+  },
+  pressable: {
+    cursor: "pointer",
   },
   image: {
     width: "100%",

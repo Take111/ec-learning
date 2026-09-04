@@ -5,8 +5,9 @@ import { Color } from "expo-router";
 // 前提: アクセント「青系1色」はプラットフォームの systemBlue / primary をそのまま採用。
 //   独自ブランド色が必要になったら、ここを hook ベースの light/dark ペアに切り替える
 //   (静的トークンからは参照できなくなる境界に注意)。
-// 前提: default(web)はライト固定。web は開発プレビュー用途のため。
-//   web でもダーク対応するなら useColorScheme ベースの palette に作り直す。
+// 前提: default(web)はライト固定。web 対応(2026-08)後もこれは変えていない —
+//   v1 のスコープ制御(グリッド・ヘッダーナビ・ダイアログを先に磨く判断)。
+//   web でダーク対応するなら useColorScheme ベースの palette に作り直す。
 // 前提: Android の dynamic 色はモジュール評価時のスナップショット(実行中のテーマ
 //   変更に追従しない)。本プロジェクトは iOS 優先のため許容 — Android を一級対応
 //   するときは colors を useColors() フックに変えて追従させる。

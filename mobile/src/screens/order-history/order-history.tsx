@@ -1,8 +1,8 @@
-import { ActivityIndicator, FlatList, StyleSheet } from "react-native";
+import { ActivityIndicator, FlatList, Platform, StyleSheet } from "react-native";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { listOrders } from "@/api/client";
 import { EmptyState } from "@/components/empty-state/empty-state";
-import { colors, spacing } from "@/theme";
+import { colors, contentWidth, spacing } from "@/theme";
 import { OrderRow } from "./order-row";
 
 // GET /orders のカーソルページネーション(ADR 006)をUIで実演する画面。
@@ -53,6 +53,14 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     flexGrow: 1,
+    // web は明細の読みやすい幅で中央寄せ(native では no-op)
+    ...Platform.select({
+      web: {
+        width: "100%" as const,
+        maxWidth: contentWidth.narrow,
+        marginHorizontal: "auto" as const,
+      },
+    }),
   },
   loading: {
     padding: spacing.lg,

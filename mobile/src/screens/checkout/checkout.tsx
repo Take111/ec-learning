@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,8 +10,9 @@ import { ThemedText } from "@/components/themed-text/themed-text";
 import { DEMO_ADDRESS, DEMO_ADDRESS_ID, estimateShippingJpy } from "@/constants";
 import { useBottomInset } from "@/hooks/use-bottom-inset";
 import { cartSubtotal, useCart } from "@/stores/cart";
-import { colors, interaction, spacing, surfaces } from "@/theme";
+import { colors, contentWidth, interaction, spacing, surfaces } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
+import { isHovered } from "@/utils/pressable-hovered";
 import { OrderComplete } from "./order-complete";
 import { showPlaceOrderError } from "./place-order-alerts";
 
@@ -93,7 +94,12 @@ export function Checkout() {
                 accessibilityRole="button"
                 onPress={() => router.back()}
                 hitSlop={8}
-                style={({ pressed }) => pressed && { opacity: interaction.pressed }}
+                style={(state) => [
+                  { cursor: "pointer" as const },
+                  state.pressed
+                    ? { opacity: interaction.pressed }
+                    : isHovered(state) && { opacity: interaction.hovered },
+                ]}
               >
                 <ThemedText color="accent">キャンセル</ThemedText>
               </Pressable>
@@ -156,6 +162,14 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     gap: spacing.lg,
+    // web はフォーム系の読みやすい幅で中央寄せ(native では no-op)
+    ...Platform.select({
+      web: {
+        width: "100%" as const,
+        maxWidth: contentWidth.narrow,
+        marginHorizontal: "auto" as const,
+      },
+    }),
   },
   section: {
     gap: spacing.sm,

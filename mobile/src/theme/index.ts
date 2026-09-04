@@ -1,3 +1,4 @@
+export { breakpoints, contentWidth } from "./breakpoints";
 export { colors } from "./colors";
 export { interaction } from "./interaction";
 export { spacing } from "./spacing";

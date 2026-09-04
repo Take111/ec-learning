@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet } from "react-native";
+import { ActivityIndicator, FlatList, Platform, StyleSheet } from "react-native";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { listCategories, listProducts } from "@/api/client";
 import { EmptyState } from "@/components/empty-state/empty-state";
-import { colors, spacing } from "@/theme";
+import { colors, contentWidth, spacing } from "@/theme";
 import { CategoryChips } from "./category-chips";
 import { ProductCard } from "./product-card";
+import { useGridColumns } from "./use-grid-columns";
 
 export function ProductList() {
   const [parentId, setParentId] = useState<number | null>(null);
   const [childId, setChildId] = useState<number | null>(null);
+  const numColumns = useGridColumns();
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
@@ -38,7 +40,10 @@ export function ProductList() {
       contentInsetAdjustmentBehavior="automatic"
       data={products}
       keyExtractor={(p) => String(p.id)}
-      numColumns={2}
+      // FlatList は numColumns の動的変更を許さないため key で再マウントする。
+      // 発生するのは web のブレークポイント跨ぎのみ(スクロール位置が飛ぶのは許容)
+      key={numColumns}
+      numColumns={numColumns}
       columnWrapperStyle={styles.column}
       contentContainerStyle={styles.content}
       ListHeaderComponent={
@@ -53,7 +58,9 @@ export function ProductList() {
           onSelectChild={setChildId}
         />
       }
-      renderItem={({ item, index }) => <ProductCard product={item} index={index} />}
+      renderItem={({ item, index }) => (
+        <ProductCard product={item} index={index} columns={numColumns} />
+      )}
       onEndReached={() => {
         if (productsQuery.hasNextPage && !productsQuery.isFetchingNextPage) {
           productsQuery.fetchNextPage();
@@ -85,6 +92,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: spacing.xl,
+    // web はグリッド上限幅で中央寄せ(native では no-op)
+    ...Platform.select({
+      web: {
+        width: "100%" as const,
+        maxWidth: contentWidth.wide,
+        marginHorizontal: "auto" as const,
+      },
+    }),
   },
   loading: {
     padding: spacing.lg,

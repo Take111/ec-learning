@@ -5,6 +5,7 @@ import { ThemedText } from "@/components/themed-text/themed-text";
 import { CartItem, useCart } from "@/stores/cart";
 import { colors, interaction, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
+import { isHovered } from "@/utils/pressable-hovered";
 
 export function CartLine({ item }: { item: CartItem }) {
   const setQuantity = useCart((s) => s.setQuantity);
@@ -30,7 +31,12 @@ export function CartLine({ item }: { item: CartItem }) {
             accessibilityRole="button"
             onPress={() => remove(item.productId)}
             hitSlop={12} // テキストリンクでも44pt相当のタッチターゲットを確保
-            style={({ pressed }) => pressed && { opacity: interaction.pressed }}
+            style={(state) => [
+              { cursor: "pointer" as const },
+              state.pressed
+                ? { opacity: interaction.pressed }
+                : isHovered(state) && { opacity: interaction.hovered },
+            ]}
           >
             <ThemedText variant="subhead" color="destructive">
               削除

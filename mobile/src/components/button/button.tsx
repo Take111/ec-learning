@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { colors, interaction, radius, spacing } from "@/theme";
 import { ThemedText } from "@/components/themed-text/themed-text";
+import { isHovered } from "@/utils/pressable-hovered";
 
 // バリアントは実際の画面が必要としたときだけ足す(現時点: 注文確定=primary、数量操作=secondary)
 const variants = {
@@ -40,10 +41,21 @@ export function Button({
       accessibilityRole="button"
       disabled={disabled || loading}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={(state) => [
         styles.base,
         styles.sizes[size],
-        { backgroundColor, opacity: disabled ? interaction.disabled : pressed ? interaction.pressed : 1 },
+        {
+          backgroundColor,
+          // 押下 > ホバー(web のみ発生)> 通常 の優先順で1つだけ適用
+          opacity: disabled
+            ? interaction.disabled
+            : state.pressed
+              ? interaction.pressed
+              : isHovered(state)
+                ? interaction.hovered
+                : 1,
+        },
+        !disabled && !loading && styles.pointer,
         style, // 呼び出し側の上書きはレイアウトのみ(色を変えたくなったらバリアント不足のサイン)
       ]}
     >
@@ -64,6 +76,11 @@ const styles = {
       borderRadius: radius.md,
       borderCurve: "continuous",
       alignItems: "center",
+    },
+    // web でマウスカーソルを「押せる」表示にする(native では iPad ポインタ等にも
+    // 追従するが、既定挙動を変えないため有効時のみ付与)
+    pointer: {
+      cursor: "pointer",
     },
   }),
   sizes: StyleSheet.create({

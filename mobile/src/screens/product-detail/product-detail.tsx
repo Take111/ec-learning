@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Stack } from "expo-router";
 import { SfSymbol } from "@/components/sf-symbol/sf-symbol";
 import { useBottomInset } from "@/hooks/use-bottom-inset";
@@ -11,12 +18,13 @@ import { ProductImage } from "@/components/product-image/product-image";
 import { QuantityStepper } from "@/components/quantity-stepper/quantity-stepper";
 import { ThemedText } from "@/components/themed-text/themed-text";
 import { useCart } from "@/stores/cart";
-import { colors, shadows, spacing } from "@/theme";
+import { breakpoints, colors, contentWidth, radius, shadows, spacing } from "@/theme";
 import { formatPrice } from "@/utils/format-price";
 
 export function ProductDetail({ productId }: { productId: number }) {
   const [quantity, setQuantity] = useState(1);
   const footerBottom = useBottomInset(spacing.sm);
+  const { width } = useWindowDimensions();
   const add = useCart((s) => s.add);
   const inCart = useCart(
     (s) => s.items.find((i) => i.productId === productId)?.quantity ?? 0,
@@ -39,6 +47,85 @@ export function ProductDetail({ productId }: { productId: number }) {
   // カート内の数量と合わせて在庫を超えないよう、追加可能な残り数を上限にする
   const addableMax = Math.max(product.stock - inCart, 0);
 
+  // web の広い画面だけ2カラム(左: 画像 / 右: 情報 + CTA)。実際のECの詳細ページの構造。
+  // ネイティブと狭い web は従来の縦積み + 固定フッター(リサイズはレンダーごとに追従)
+  const wideWeb = Platform.OS === "web" && width >= breakpoints.md;
+
+  const info = (
+    <>
+      <ThemedText variant="title" numberOfLines={2}>
+        {product.name}
+      </ThemedText>
+      <Rating avgRating={product.avg_rating} reviewCount={product.review_count} />
+      <ThemedText variant="largeTitle" tabular>
+        {formatPrice(product.price_jpy)}
+      </ThemedText>
+      {soldOut ? (
+        <ThemedText variant="headline" color="destructive">
+          在庫切れ
+        </ThemedText>
+      ) : (
+        product.stock <= 5 && (
+          <ThemedText variant="subhead" color="destructive">
+            残り{product.stock}点
+          </ThemedText>
+        )
+      )}
+      {product.description && (
+        <ThemedText variant="body" color="secondaryLabel">
+          {product.description}
+        </ThemedText>
+      )}
+    </>
+  );
+
+  // CTA の中身は縦積み(固定フッター)と2カラム(右カラム内)で共有する
+  const ctaControls = !soldOut && (
+    <>
+      <QuantityStepper
+        value={quantity}
+        max={Math.max(addableMax, 1)}
+        onChange={setQuantity}
+      />
+      <Button
+        title={inCart > 0 ? `カートに追加(${inCart}点入り)` : "カートに追加"}
+        disabled={addableMax === 0}
+        style={styles.addButton}
+        onPress={() => {
+          add(
+            {
+              productId: product.id,
+              name: product.name,
+              priceJpy: product.price_jpy,
+              stock: product.stock,
+            },
+            quantity,
+          );
+          setQuantity(1);
+        }}
+      />
+    </>
+  );
+
+  if (wideWeb) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: product.name }} />
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.wideContent}>
+          <View style={styles.wideRow}>
+            <ProductImage productId={product.id} size={480} style={styles.wideImage} />
+            <View style={styles.wideBody}>
+              {info}
+              {/* 2カラムでは CTA は右カラムの内容として置く(固定フッターにしない —
+                  価格・在庫と同じ視線の流れに入れる web の作法) */}
+              {ctaControls && <View style={styles.wideCta}>{ctaControls}</View>}
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* ヘッダータイトル=商品名(HIG: 画面タイトルは Stack ヘッダーが担う) */}
@@ -50,57 +137,10 @@ export function ProductDetail({ productId }: { productId: number }) {
         contentContainerStyle={styles.content}
       >
         <ProductImage productId={product.id} size={340} style={styles.image} />
-        <View style={styles.body}>
-          <ThemedText variant="title" numberOfLines={2}>
-            {product.name}
-          </ThemedText>
-          <Rating avgRating={product.avg_rating} reviewCount={product.review_count} />
-          <ThemedText variant="largeTitle" tabular>
-            {formatPrice(product.price_jpy)}
-          </ThemedText>
-          {soldOut ? (
-            <ThemedText variant="headline" color="destructive">
-              在庫切れ
-            </ThemedText>
-          ) : (
-            product.stock <= 5 && (
-              <ThemedText variant="subhead" color="destructive">
-                残り{product.stock}点
-              </ThemedText>
-            )
-          )}
-          {product.description && (
-            <ThemedText variant="body" color="secondaryLabel">
-              {product.description}
-            </ThemedText>
-          )}
-        </View>
+        <View style={styles.body}>{info}</View>
       </ScrollView>
-      {!soldOut && (
-        <View style={[styles.footer, { paddingBottom: footerBottom }]}>
-          <QuantityStepper
-            value={quantity}
-            max={Math.max(addableMax, 1)}
-            onChange={setQuantity}
-          />
-          <Button
-            title={inCart > 0 ? `カートに追加(${inCart}点入り)` : "カートに追加"}
-            disabled={addableMax === 0}
-            style={styles.addButton}
-            onPress={() => {
-              add(
-                {
-                  productId: product.id,
-                  name: product.name,
-                  priceJpy: product.price_jpy,
-                  stock: product.stock,
-                },
-                quantity,
-              );
-              setQuantity(1);
-            }}
-          />
-        </View>
+      {ctaControls && (
+        <View style={[styles.footer, { paddingBottom: footerBottom }]}>{ctaControls}</View>
       )}
     </View>
   );
@@ -172,5 +212,34 @@ const styles = StyleSheet.create({
   },
   addButton: {
     flex: 1,
+  },
+  // ---- web 2カラム(wideWeb)専用 ----
+  wideContent: {
+    width: "100%",
+    maxWidth: contentWidth.wide,
+    marginHorizontal: "auto",
+    padding: spacing.lg,
+  },
+  wideRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.xl,
+  },
+  wideImage: {
+    flex: 1,
+    maxWidth: 480,
+    height: "auto",
+    aspectRatio: 1,
+    borderRadius: radius.lg,
+  },
+  wideBody: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  wideCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
 });
