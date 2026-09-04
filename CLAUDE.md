@@ -135,6 +135,9 @@ md=768 / lg=1024 の2段のみ(`src/theme/breakpoints.ts`)。
 - ネイティブビルド検証(2026-09-04): mobile/ が変わった PR / main push で `mise run mobile-ios-build` /
   `mise run mobile-android-build` を回す(手動は `workflow_dispatch`)。手順と前提は mise.toml のタスクコメント。
   GitHub-hosted を選んだ(EAS でなく)のは公開リポで標準ランナーが無料なため。キャッシュは所要時間を実測してから
+- Required チェックは集約ジョブ `ci-ok` の 1 つだけ(2026-09-04)。paths-filter で skip されるネイティブビルドを
+  「skip は合格・failure は不合格」に読み替えて auto-merge が待てるようにする。理由と落とし穴は ci.yml のコメント。
+  ジョブを足しても Branch 設定は触らない。`ci-ok` を改名したら Settings → Branches の Required も直す
 - Renovate(ADR 007): hosted App + `renovate.json5`(コメント付き)。運用ルール:
   - major は Dependency Dashboard でチェックを入れてから PR が作られる(承認制)
   - Expo SDK 連動パッケージは patch のみ・1グループ(`renovate/expo-sdk`)。そのブランチだけ CI で

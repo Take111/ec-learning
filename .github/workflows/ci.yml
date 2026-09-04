@@ -133,3 +133,27 @@ jobs:
         run: mise run mobile-install
       - name: prebuild + gradle assembleDebug(x86_64 のみ)
         run: mise run mobile-android-build
+
+  # Branch protection の Required はこのジョブ 1 つだけにする(個別ジョブは Required にしない)。
+  # 理由: ネイティブビルドは paths-filter で skip されることがあり、skip されたジョブを Required にすると
+  # 「チェックが永遠に来ない」状態でマージが止まる。逆に Required から外すと、走っている最中でも
+  # 「Required は全部緑」と見なされ auto-merge が待ってくれない。両立させるには、全ジョブの結果を
+  # 1 箇所に集約して「skip は合格・failure/cancelled は不合格」と読み替える層が要る。
+  # ジョブを増減しても Branch 設定を触らなくてよい、という副次効果もある。
+  # 前提: この名前(ci-ok)で Required に登録している。名前を変えたら Settings → Branches も直す
+  ci-ok:
+    name: ci-ok
+    needs: [api, mobile, changes, mobile-ios, mobile-android]
+    # 上流が失敗・skip でも必ず走らせる(既定だと needs の 1 つでも skip されると自分も skip され、
+    # Required が pending のまま固まる)。always() でなく !cancelled() なのは、concurrency の
+    # cancel-in-progress で古い run が打ち切られたときまで赤くしないため(新しいコミットには新しい run が付く)
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 上流ジョブの結果
+        run: echo '${{ toJSON(needs) }}'
+      # changes も needs に含める理由: 判定ジョブが失敗するとネイティブビルドは「needs 失敗 → skipped」になり、
+      # skipped は合格扱いなので、changes 自身を見ていないと赤いはずの PR が緑になる
+      - name: 失敗・打ち切りがあれば落とす(skipped は合格)
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
