@@ -32,6 +32,7 @@
 | API(フェーズB) | Go + pgx + sqlc(SQLは手書き・標準ライブラリ net/http) |
 | フロント(フェーズC) | React Native + Expo(NativeTabs / Liquid Glass)— [mobile/README.md](mobile/README.md) |
 | Apple Watch(フェーズC拡張) | SwiftUI ネイティブ + @bacons/apple-targets(閲覧のみ・API直接取得)— [ADR 008](docs/decisions/008-apple-watch-browsing.md) |
+| Web(フェーズC拡張) | 同じ RN コードベースを react-native-web で。ヘッダーナビ・レスポンシブ・ダイアログは `.web.tsx` 同居分岐 — [mobile/README.md](mobile/README.md#web同じコードベースをブラウザで) |
 | CI/CD(フェーズD) | GitHub Actions + Renovate(依存更新)— [ADR 007](docs/decisions/007-dependency-updates-renovate.md) |
 | ツール管理 | mise(バージョン・環境変数・タスクを mise.toml に集約) |
 
@@ -62,6 +63,9 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
 - **Apple Watch(SwiftUI)**: RN が動かない watchOS で商品の一覧・詳細を閲覧。
   `@bacons/apple-targets` で CNG を保ったままターゲットを注入し、Go API を直接取得(ADR 008)。
   スクリーンショットは [mobile/README.md](mobile/README.md#apple-watch閲覧のみ)
+- **Web(react-native-web)**: 同じ5画面をブラウザでも。プラットフォームごとに正解が違う chrome
+  (iOS は下タブ、web はヘッダーナビ)と `Alert` の web 代替を `.web.tsx` 同居分岐で吸収し、
+  409 ダイアログも web で実証。スクリーンショットは [mobile/README.md](mobile/README.md#web同じコードベースをブラウザで)
 
 ## フェーズ構成
 

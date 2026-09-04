@@ -119,6 +119,15 @@ RN は watchOS で動かないため、Watch は SwiftUI ネイティブ実装(`
 `@bacons/apple-targets` で prebuild 時に Xcode ターゲットとして注入し CNG を維持。
 データは Watch から API を直接取得(一覧は先頭1ページのみ)。判断の詳細は ADR 008。
 
+## Web 対応(2026-09-04・PR #5)
+
+同じ RN コードベースを react-native-web で動かす。ヘッダーナビ(`site-header.web.tsx`)・
+ヘッドレスタブ(`(tabs)/_layout.web.tsx`)・`Alert` 代替のダイアログ(`app-dialog/*.web.*`)・
+グリッド列数(`use-grid-columns.web.ts`)を `.web.tsx` 同居分岐で吸収。ブレークポイントは
+md=768 / lg=1024 の2段のみ(`src/theme/breakpoints.ts`)。
+**Go API に CORS が未実装**なので、ブラウザからの実 API 接続は宿題(`src/api/client.ts` のコメント参照)。
+スクリーンショットは mobile/README.md の Web 節。
+
 ## フェーズDは完了(2026-08-28)
 
 - CI(PR #1): lint / test / マイグレーション検証を mise タスク経由で実行。migrate.sh は CI でもそのまま使う
