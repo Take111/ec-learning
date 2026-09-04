@@ -35,7 +35,8 @@ struct OrderActivityWidget: Widget {
                         .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    StageProgressView(state: context.state, presentation: presentation, isStale: context.isStale)
+                    StageProgressView(state: context.state, stageCount: context.attributes.stageCount,
+                                      presentation: presentation, isStale: context.isStale)
                         .padding(.horizontal, 4)
                 }
             } compactLeading: {
@@ -80,7 +81,8 @@ private struct LockScreenView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            StageProgressView(state: state, presentation: presentation, isStale: isStale)
+            StageProgressView(state: state, stageCount: attributes.stageCount,
+                              presentation: presentation, isStale: isStale)
         }
         .padding()
     }
@@ -99,22 +101,23 @@ private struct StatusPill: View {
     }
 }
 
-// 4段の進捗トラック + 現ステージのカウントダウン(OS が自走)。
-// 終端(stageEndsAt == nil)では「何が進んでいるか」の行を出さず、トラックを全点灯にする。
+// 進捗トラック(段数と位置は JS の時間割から ContentState / Attributes で届く)+ 現ステージのカウントダウン(OS が自走)。
+// 終端(stageEndsAt == nil)では「何が進んでいるか」の行を出さない。
 // 前提: 状態を進めるのはアプリ側なので、アプリがサスペンド中にカウントダウンが尽きると次へ進めない。
 //   その状態は staleDate(= stageEndsAt)経過で OS が isStale=true にして再描画してくれるので、
 //   「0:00」で止まった表示を「アプリを開くと更新」に言い換える(ADR 009 の制約をUIで正直に出す)
 private struct StageProgressView: View {
     let state: OrderActivityAttributes.ContentState
+    let stageCount: Int
     let presentation: OrderStatusPresentation
     let isStale: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
-                ForEach(0..<OrderStatusPresentation.stageCount, id: \.self) { index in
+                ForEach(0..<stageCount, id: \.self) { index in
                     Capsule()
-                        .fill(isReached(index) ? presentation.color : Color.secondary.opacity(0.25))
+                        .fill(index <= state.stageIndex ? presentation.color : Color.secondary.opacity(0.25))
                         .frame(height: 4)
                 }
             }
@@ -134,10 +137,5 @@ private struct StageProgressView: View {
                 .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private func isReached(_ index: Int) -> Bool {
-        guard let current = presentation.stageIndex else { return false }
-        return index <= current
     }
 }
