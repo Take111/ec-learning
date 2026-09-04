@@ -31,9 +31,13 @@
   - コンポーネント規約: `components/<name>/<name>.tsx` のディレクトリ単位で作る
     (`<name>.web.tsx` などプラットフォーム分岐ファイルを同居させる余地のため)
 - CI/CD: GitHub Actions + Renovate(依存更新。設定は renovate.json5、判断は ADR 007)
-- AIエージェント: Expo公式スキル([expo/skills](https://github.com/expo/skills))を
-  `.claude/settings.json` の `enabledPlugins`(`expo@claude-plugins-official`)で有効化。
-  リポジトリにチェックイン済みなのでローカル・Web どちらのセッションでも自動ロードされる
+- AIエージェント: 公式マーケットプレイス(`claude-plugins-official`)のプラグインを
+  `.claude/settings.json` の `enabledPlugins` で有効化。リポジトリにチェックイン済みなので
+  ローカル・Web どちらのセッションでも自動ロードされる
+  - `expo`: Expo公式スキル([expo/skills](https://github.com/expo/skills))
+  - `feature-dev`: `/feature-dev` で機能追加を7フェーズ(探索→要件→設計→実装→レビュー)で進める
+    ワークフロー。code-explorer / code-architect / code-reviewer の3エージェント付き。
+    「選択肢→トレードオフ→推奨案」を出す設計フェーズが本プロジェクトの進め方と相性がよい
 - ツール・タスク管理: **mise**(`mise.toml`)— Node/Goのバージョン固定、PG*環境変数、タスクランナー(`mise run up` など)を1ファイルに集約。操作の入口はすべて mise タスクにする
 
 ## フェーズ構成
