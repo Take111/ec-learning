@@ -52,6 +52,35 @@ React Native は watchOS で動かないため、Watch 側は SwiftUI のネイ�
 JSON 契約は `src/api/types.ts` と 1:1 の Swift 構造体(snake_case はデコーダで吸収)。
 同居方法・取得経路の選択肢と根拠は [ADR 008](../docs/decisions/008-apple-watch-browsing.md)。
 
+## Web(同じコードベースをブラウザで)
+
+| 商品一覧(1280px) | 商品詳細(2カラム) |
+|---|---|
+| <img src="docs/screenshots/web-list.png" width="480" /> | <img src="docs/screenshots/web-product-detail.png" width="480" /> |
+| ヘッダーナビ(カートは右上 — web EC の規約)+ 幅に応じて 2/3/4 列に切り替わるグリッド | 768px 以上で画像と情報/CTA の2カラム。ネイティブは縦積み + 固定フッターのまま |
+
+| カート | 注文確認 | 注文履歴 |
+|---|---|---|
+| <img src="docs/screenshots/web-cart.png" width="320" /> | <img src="docs/screenshots/web-checkout.png" width="320" /> | <img src="docs/screenshots/web-orders.png" width="320" /> |
+| ヘッダーのカートバッジは zustand の同じストアから | フォーム・明細系は 640px の1カラムに中央寄せ | サーバーの `next_cursor` で無限スクロール(ネイティブと同じフック) |
+
+| 409 price_changed(web ダイアログ) | 狭幅(390px) |
+|---|---|
+| <img src="docs/screenshots/web-dialog-price-changed.png" width="480" /> | <img src="docs/screenshots/web-list-narrow.png" width="200" /> |
+| `Alert.alert` は web に無いので、`DialogSpec` を挟んで native=OS Alert / web=モーダルに分岐。エラー→表示の対応表は1本のまま | 同じ web を狭幅で開くと2列。ブレークポイントは md=768 / lg=1024 の2段のみ |
+
+- **プラットフォームごとに正解が違う chrome**: iOS は親指到達性由来の下タブ(NativeTabs)、web は
+  カーソルとスクロール文脈由来のヘッダーナビ。web は `_layout.web.tsx` のヘッドレスタブ
+  (`expo-router/ui`)でタブのマウント状態を保ちつつ、見た目のナビは `site-header.web.tsx` に委ねる
+- **分岐は同居ファイルで**: `site-header` / `app-dialog` / `sf-symbol`(SF Symbols → Material Icons)/
+  `use-grid-columns` はすべて `<name>.web.tsx` の同居分岐。画面コードの import は1本のまま
+- **409 ダイアログも web で実証**: 上のスクリーンショットは DB の価格を直接改定してから確定ボタンを
+  押し、サーバーの 409 を実際に受けて出したもの(iOS と同じ手順)
+- 前提: Go API に CORS 対応がまだ無いため、ブラウザからの実 API 接続は preflight で失敗する
+  (native の fetch には CORS が無い — この非対称が API 側に CORS 設計を要求する。`src/api/client.ts` のコメント参照)。
+  上のスクリーンショットは検証用にブラウザ側で CORS ヘッダを補って撮影。商品画像も撮影環境から
+  picsum.photos に到達できず、商品IDで色を決めたプレースホルダに差し替えている
+
 ## 技術構成
 
 | 領域 | 選定 | 補足 |
@@ -62,6 +91,7 @@ JSON 契約は `src/api/types.ts` と 1:1 の Swift 構造体(snake_case はデ�
 | クライアント状態 | zustand | カートのみ(DBにカートを作らない決定) |
 | デザイン | セマンティックカラー + 自作トークン(`src/theme/`) | トークン逸脱の監査: 4件/1,683行・全件意図コメント付き。アクセントは systemBlue |
 | Apple Watch | SwiftUI ネイティブ + `@bacons/apple-targets` | RN は watchOS 非対応。閲覧のみ・API 直接取得([ADR 008](../docs/decisions/008-apple-watch-browsing.md)) |
+| Web | react-native-web + expo-router 静的出力 | ヘッダーナビ・レスポンシブグリッド・モーダルダイアログを `.web.tsx` 同居分岐で。CORS は API 側の宿題 |
 | パッケージ管理 | pnpm(mise でバージョン固定) | 操作の入口はリポジトリルートの mise タスク |
 
 ## 設計の要点
@@ -90,6 +120,7 @@ cp mobile/.env.local.example mobile/.env.local   # 任意: Apple Team ID など�
 mise run mobile-ios              # ローカルビルド → iPhone 17 Pro シミュレータで起動(EC_IOS_DEVICE で端末差し替え。slug/scheme は他プロジェクトと衝突しないよう "eclearning" — 理由は mise.toml のコメント)
 mise run mobile-watch            # Watch アプリを単体ビルド → ペアリング済み Watch シミュレータで起動(要: Booted な iPhone/Watch ペア)
 mise run mobile-xcode            # Xcode で開く(必ず .xcworkspace。.xcodeproj だと Pods が入らず失敗)
+mise run mobile-start -- --web   # ブラウザで開く(実 API 接続は Go 側の CORS 対応待ち — 上の Web 節を参照)
 mise run mobile-check            # tsc + eslint
 ```
 
