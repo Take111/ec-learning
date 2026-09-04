@@ -15,6 +15,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # ネイティブビルドを任意のブランチで手動実行するため(Actions タブの Run workflow)。
+  # 用途: ci.yml / mise タスクを変えたときに PR を作る前に通す、ランナーの Xcode 更新で壊れていないか確かめる
+  workflow_dispatch:
+
+# 同じ PR に連続 push したとき、古い実行(特に 20〜30 分かかる macOS のネイティブビルド)を打ち切る。
+# main への push は全部通す(どのコミットで壊れたかを追えるようにするため cancel しない)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   api:
@@ -71,3 +80,83 @@ jobs:
       - name: Expo SDK 互換チェック(Renovate の expo-sdk PR のみ)
         if: startsWith(github.head_ref, 'renovate/expo-sdk')
         run: mise run mobile-expo-check
+
+  # ---- ネイティブビルド検証 ----------------------------------------------------------------
+  # 背景: CNG(ios/・android/ は生成物で git 管理外)なので、ネイティブが壊れているかは prebuild して
+  # 実際にコンパイルするまで分からない。tsc / lint は JS しか見ていない。特に壊れやすいのは
+  #   - Renovate の expo-sdk PR(ネイティブ依存の版が動く)
+  #   - app.json / app.config.ts の config plugin 変更
+  #   - targets/watch の Swift(apple-targets が prebuild で注入 → iOS ビルドの中でコンパイルされる)
+  #
+  # 設計判断(2026-09-04):
+  #   - どこで: GitHub-hosted の macOS / ubuntu ランナー(EAS Build ではなく)。公開リポは標準ランナーが無料で、
+  #     ci.yml と mise タスクに集約できる。EAS は Expo アカウント + トークン管理と月 30 ビルドの枠が要る
+  #   - いつ: mobile/ 配下(+ この ci.yml と mise.toml)が変わった PR / main push のみ。API だけの PR で
+  #     macOS を 20〜30 分回す理由がない。JS のみの変更でも回す(「ネイティブに影響するパスだけ」に絞る案は、
+  #     フィルタ漏れのリスクと引き換えなので採らなかった)
+  #   - どこまで: Debug・シミュレータ/エミュレータ向け・署名なし・JS バンドルなし。手順は mise タスク側
+  #     (mobile-ios-build / mobile-android-build)にあり、ローカルでも同じコマンドで再現できる
+  #   - キャッシュ(CocoaPods / Gradle / pnpm store)はまだ入れていない。所要時間を実測してから決める
+  #     (ADR 005 のインデックスと同じ姿勢: 遅さを測ってから手を入れる)
+  #
+  # 注意: paths フィルタで skip されたジョブは status として報告されない。ブランチ保護で必須チェックにする場合、
+  #   skip = 未報告 = マージ不可になる。必須にしたいなら「changes で判定 → 対象外なら成功で早期終了」の形に変える
+  changes:
+    name: 変更範囲の判定
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # PR は base との差分、main push は直前コミットとの差分で判定する(どちらも action が面倒を見る)。
+      # workflow_dispatch は比較対象が無いので判定を飛ばし、上の outputs で常に true にする
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        with:
+          filters: |
+            mobile:
+              - 'mobile/**'
+              - 'mise.toml'
+              - '.github/workflows/ci.yml'
+
+  mobile-ios:
+    name: mobile(iOS ネイティブビルド)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    # macos-26 を明示(macos-latest にしない): Liquid Glass(NativeTabs)は iOS 26 SDK = Xcode 26 が前提で、
+    # latest が macOS 27 / Xcode 27 に動いた瞬間に RN のビルドが未知の Xcode で壊れる事故を避ける。
+    # ランナー上げは Xcode の版をローカルと揃えるタイミングで手で行う(Renovate は runs-on を見ない)
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 依存インストール
+        run: mise run mobile-install
+      - name: prebuild + xcodebuild(シミュレータ・署名なし・バンドルなし)
+        run: mise run mobile-ios-build
+      # タスクは失敗時に error 行だけ出す。原因が error 行に出ない失敗(Pods の解決・リンク等)のため末尾も残す
+      - name: xcodebuild ログ末尾(失敗時のみ)
+        if: failure()
+        run: tail -n 300 mobile/ios/build/ci-build.log || true
+
+  mobile-android:
+    name: mobile(Android ネイティブビルド)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    # ubuntu ランナーは Android SDK / NDK / JDK 17(既定)を同梱しているので、セットアップ用 action は足していない。
+    # 足りないビルドツールは Gradle が自動で取得する(ライセンスは同梱 SDK 側で受諾済み)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 依存インストール
+        run: mise run mobile-install
+      - name: prebuild + gradle assembleDebug(x86_64 のみ)
+        run: mise run mobile-android-build
