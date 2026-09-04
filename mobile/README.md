@@ -52,6 +52,30 @@ React Native は watchOS で動かないため、Watch 側は SwiftUI のネイ�
 JSON 契約は `src/api/types.ts` と 1:1 の Swift 構造体(snake_case はデコーダで吸収)。
 同居方法・取得経路の選択肢と根拠は [ADR 008](../docs/decisions/008-apple-watch-browsing.md)。
 
+## 注文の Live Activity(iOS)
+
+| ロック画面 | Dynamic Island(展開) | Dynamic Island(compact) |
+|---|---|---|
+| <img src="docs/screenshots/live-activity-lock.png" width="240" /> | <img src="docs/screenshots/live-activity-island-expanded.png" width="240" /> | <img src="docs/screenshots/live-activity-island-compact.png" width="240" /> |
+| 注文番号・合計(サーバー確定値)・点数・ステータス・4段の進捗トラック。カウントダウンは OS が自走 | 左に注文番号、右に合計、下に進捗。タップで履歴タブへ(`eclearning://orders`) | アイコン=ステータス(色も履歴画面と同じ対応)、右に合計 |
+
+注文確定(`POST /orders` 成功)の瞬間に開始する。UI は WidgetKit 拡張の SwiftUI
+(`targets/order-activity/`、Watch と同じ `@bacons/apple-targets` 経由)で、JS からの開始・更新・終了は
+自作のローカル Expo Module(`modules/order-live-activity/`)が ActivityKit を叩く。Android / web では
+モジュールがリンクされず no-op になる。
+
+- **進捗はクライアント側の疑似**: サーバーは `orders.status` を `pending` から変えない(イベントは UPDATE しない原則)ため、
+  `src/live-activity/order-activity-stage.ts` の時間割(デモ規模: +15秒 paid / +45秒 shipped / +90秒 delivered)で進める
+- **バックグラウンドでは状態が進まない**: JS のタイマーはサスペンドで止まる。復帰時に経過時間から再計算して追いつく。
+  ロック中に動くのはウィジェット側の `Text(timerInterval:)` だけ。正道は APNs push(残課題)
+- **二重開始しない**: 通信断リトライ(冪等リプレイ)で同じ注文が返っても、ネイティブ側が `orderId` で既存の Activity を探して更新に倒す
+- **終了条件**: delivered 後は開始から1時間で自動消滅 / 履歴タブを開いたら即終了 / 起動時は OS 側に残る Activity から
+  追跡を復元し、期限切れだけを掃除(強制終了→再起動でも進行を引き継ぐ)
+
+`ActivityAttributes` は本体側とウィジェット側の両方でコンパイルする必要があり、実体1ファイルへの
+シンボリックリンクで共有している(podspec の相対パスは CocoaPods に無視される — 実測)。
+方式の選択肢と根拠は [ADR 009](../docs/decisions/009-order-live-activity.md)。
+
 ## Web(同じコードベースをブラウザで)
 
 | 商品一覧(1280px) | 商品詳細(2カラム) |
@@ -91,6 +115,7 @@ JSON 契約は `src/api/types.ts` と 1:1 の Swift 構造体(snake_case はデ�
 | クライアント状態 | zustand | カートのみ(DBにカートを作らない決定) |
 | デザイン | セマンティックカラー + 自作トークン(`src/theme/`) | トークン逸脱の監査: 4件/1,683行・全件意図コメント付き。アクセントは systemBlue |
 | Apple Watch | SwiftUI ネイティブ + `@bacons/apple-targets` | RN は watchOS 非対応。閲覧のみ・API 直接取得([ADR 008](../docs/decisions/008-apple-watch-browsing.md)) |
+| Live Activity | SwiftUI ウィジェット拡張 + ローカル Expo Module | 注文直後にロック画面 / Dynamic Island。進捗はクライアント側の疑似([ADR 009](../docs/decisions/009-order-live-activity.md)) |
 | Web | react-native-web + expo-router 静的出力 | ヘッダーナビ・レスポンシブグリッド・モーダルダイアログを `.web.tsx` 同居分岐で。CORS は API 側の宿題 |
 | パッケージ管理 | pnpm(mise でバージョン固定) | 操作の入口はリポジトリルートの mise タスク |
 
@@ -116,6 +141,7 @@ mise run api-run                 # Go API(:8080)
 # モバイル
 mise run mobile-install
 mise run mobile-prebuild         # CNG: ios/ は生成物(git管理外)
+mise run mobile-prebuild-clean   # ios/ を消して作り直す(targets/ や modules/ を追加・改名したとき)
 cp mobile/.env.local.example mobile/.env.local   # 任意: Apple Team ID など環境依存の値(app.config.ts が注入。シミュレータのみなら不要)
 mise run mobile-ios              # ローカルビルド → iPhone 17 Pro シミュレータで起動(EC_IOS_DEVICE で端末差し替え。slug/scheme は他プロジェクトと衝突しないよう "eclearning" — 理由は mise.toml のコメント)
 mise run mobile-watch            # Watch アプリを単体ビルド → ペアリング済み Watch シミュレータで起動(要: Booted な iPhone/Watch ペア)
