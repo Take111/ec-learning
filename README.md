@@ -75,7 +75,9 @@ mise run explain -- q1 baseline   # 計測(結果は docs/measurements/ へ)
   冪等キー・サーバー側価格決定の3原則を実装し、並行テストで実証
 - **フェーズC(完了)**: React Native + Expo の5画面。エラー系UXがAPI設計の実演
 - **フェーズD(完了)**: GitHub Actions(lint / test / マイグレーション検証)+ Renovate による依存更新
-  (Expo SDK 連動パッケージの扱いが設計の中心 — ADR 007)
+  (Expo SDK 連動パッケージの扱いが設計の中心 — ADR 007)。
+  mobile/ が変わった PR では iOS(macOS ランナー・Watch ターゲット込み)/ Android のネイティブビルドも検証する
+  (CNG で ios/ android/ が生成物なので、prebuild して実際にコンパイルするまで壊れが見えない — 判断は ci.yml のコメント)
 
 ## セキュリティ上の限界(意図的なスコープ)
 

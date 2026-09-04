@@ -160,6 +160,52 @@ fi
 xed ios/mobile.xcworkspace
 '''
 
+[tasks.mobile-ios-build]
+description = "iOS をシミュレータ向けにビルドだけ行う(署名なし・JS バンドルなし。CI のネイティブビルド検証と同じ手順)"
+dir = "mobile"
+# 目的は「ネイティブ側(prebuild → CocoaPods → Xcode)が通るか」の検証。JS 側は tsc / lint(mobile-check)が担うので
+# SKIP_BUNDLING=1 で Metro のバンドル工程を飛ばす(react-native-xcode.sh がこの変数を見る)。
+# 前提: シミュレータ向け Debug は署名不要。CODE_SIGNING_ALLOWED=NO を明示して Team ID(EC_APPLE_TEAM_ID)無しでも通す
+#   (@bacons/apple-targets が「appleTeamId が無い」と警告を出すが、シミュレータビルドには影響しない)。
+# 前提: -destination generic では全 arch がビルドされるので、ARCHS をホスト CPU(uname -m: arm64 / x86_64)に固定する。
+# 前提: Watch ターゲット(targets/watch)は本体 scheme の依存として一緒にコンパイルされる → Swift の破損もここで検知できる。
+# derivedDataPath を ios/build/ci に固定するのは、既定の ~/Library/Developer/Xcode/DerivedData がハッシュ付きで不定なため
+# (mobile-watch と同じ理由)。ログはファイルに落とし、失敗時に error 行を抜き出す(xcodebuild の全文は数万行になる)。
+# CI(GitHub Actions は CI=true を設定する)では error 行に原因が出ない失敗(Pods の解決・リンク)に備えて末尾も出す
+run = '''
+set -e
+ARCH="$(uname -m)"
+echo "▸ prebuild(ios)"
+PATH="$EC_TOOL_PATH:$PATH" CI=1 pnpm run prebuild --platform ios
+echo "▸ xcodebuild(iOS Simulator / Debug / $ARCH → ios/build/ci)"
+LOG=ios/build/ci-build.log; mkdir -p ios/build
+xcodebuild -workspace ios/mobile.xcworkspace -scheme mobile -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build/ci \
+  CODE_SIGNING_ALLOWED=NO SKIP_BUNDLING=1 ARCHS="$ARCH" \
+  build > "$LOG" 2>&1 \
+  || { echo "ビルド失敗。エラー行:"; grep -E "error:" "$LOG" | sort -u | head -30; echo "(全文: mobile/$LOG)";
+       if [ -n "${CI:-}" ]; then echo "--- ログ末尾 ---"; tail -n 300 "$LOG"; fi; exit 1; }
+echo "✔ iOS ビルド成功"
+'''
+
+[tasks.mobile-android-build]
+description = "Android を Debug ビルドだけ行う(APK は起動しない。CI のネイティブビルド検証と同じ手順。前提: JDK 17 と Android SDK)"
+dir = "mobile"
+# 目的は iOS 側と同じ「ネイティブが通るか」。Debug variant は JS を Metro から読む設計なのでバンドル工程は元から無い。
+# 前提: ABI を x86_64 に絞る(gradle.properties の既定は 4 ABI)。reanimated / worklets の C++ を NDK で ABI ごとに
+#   コンパイルするのがビルド時間の大半で、「通るか」の検証に複数 ABI は要らない。実機向け APK が要るなら外す。
+# 前提: JDK は RN 0.86 の gradle-plugin が 17 に揃える(JdkConfiguratorUtils)。Gradle 9 系の最低要件も 17。
+#   GitHub の ubuntu ランナーは既定が 17 なので CI 側で追加セットアップはしていない(既定が動いたら setup-java を足す)。
+# --no-daemon: 1 回きりのビルドでデーモンを残さない(CI 向け。ローカルで繰り返すなら外して構わない)
+run = '''
+set -e
+echo "▸ prebuild(android)"
+PATH="$EC_TOOL_PATH:$PATH" CI=1 pnpm run prebuild --platform android
+echo "▸ gradle assembleDebug(ABI: x86_64 のみ)"
+cd android && PATH="$EC_TOOL_PATH:$PATH" ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
+echo "✔ Android ビルド成功"
+'''
+
 [tasks.mobile-check]
 description = "mobile/ の型チェックと lint"
 dir = "mobile"

@@ -15,6 +15,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  # ネイティブビルドを任意のブランチで手動実行するため(Actions タブの Run workflow)
+  workflow_dispatch:
+
+# 同じ PR への連続 push では古い実行を打ち切る(macOS のネイティブビルドが 20〜30 分かかるため)。
+# PR 以外は run_id でグループを一意にし、main の連続 push が互いを打ち切らないようにする
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   api:
@@ -71,3 +79,57 @@ jobs:
       - name: Expo SDK 互換チェック(Renovate の expo-sdk PR のみ)
         if: startsWith(github.head_ref, 'renovate/expo-sdk')
         run: mise run mobile-expo-check
+
+  # mobile/ が変わったときだけネイティブビルドを回す(API だけの PR で macOS を 20〜30 分回さない)
+  changes:
+    name: 変更範囲の判定
+    runs-on: ubuntu-latest
+    outputs:
+      # フィルタが skip されたとき(workflow_dispatch)は空文字 → 実行する
+      mobile: ${{ steps.filter.outputs.mobile != 'false' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # workflow_dispatch は比較対象のコミットが無いので判定を飛ばす
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        with:
+          filters: |
+            mobile:
+              - 'mobile/**'
+              - 'mise.toml'
+              - '.github/workflows/ci.yml'
+
+  mobile-ios:
+    name: mobile(iOS ネイティブビルド)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    # macos-26 = Xcode 26(Liquid Glass に必要な iOS 26 SDK)。latest にすると Xcode 27 へ勝手に動くので固定
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 依存インストール
+        run: mise run mobile-install
+      - name: prebuild + xcodebuild(シミュレータ・署名なし・バンドルなし)
+        run: mise run mobile-ios-build
+
+  mobile-android:
+    name: mobile(Android ネイティブビルド)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    # ubuntu ランナーは Android SDK / NDK / JDK 17(既定)を同梱しているので、セットアップ用 action は不要
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 依存インストール
+        run: mise run mobile-install
+      - name: prebuild + gradle assembleDebug(x86_64 のみ)
+        run: mise run mobile-android-build

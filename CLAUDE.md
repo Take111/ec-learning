@@ -132,6 +132,9 @@ md=768 / lg=1024 の2段のみ(`src/theme/breakpoints.ts`)。
 
 - CI(PR #1): lint / test / マイグレーション検証を mise タスク経由で実行。migrate.sh は CI でもそのまま使う
   (gomigrate 置き換えは不要と判断 — 自作30行で CI 要件を満たした)
+- ネイティブビルド検証(2026-09-04): mobile/ が変わった PR / main push で `mise run mobile-ios-build` /
+  `mise run mobile-android-build` を回す(手動は `workflow_dispatch`)。手順と前提は mise.toml のタスクコメント。
+  GitHub-hosted を選んだ(EAS でなく)のは公開リポで標準ランナーが無料なため。キャッシュは所要時間を実測してから
 - Renovate(ADR 007): hosted App + `renovate.json5`(コメント付き)。運用ルール:
   - major は Dependency Dashboard でチェックを入れてから PR が作られる(承認制)
   - Expo SDK 連動パッケージは patch のみ・1グループ(`renovate/expo-sdk`)。そのブランチだけ CI で
