@@ -30,7 +30,7 @@
 
   // Renovate が pnpm-lock.yaml を再生成するときの pnpm の系を mise.toml と揃える
   // (ずれると CI の frozen-lockfile インストールで落ちる)。mise.toml の pnpm を上げたらここも上げる
-  "constraints": { "pnpm": "10" },
+  "constraints": { "pnpm": "11" },
   // go.sum を go mod tidy で整える(require の更新だけだと不要行が残る)
   "postUpdateOptions": ["gomodTidy"],
 
