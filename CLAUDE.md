@@ -152,6 +152,9 @@ md=768 / lg=1024 の2段のみ(`src/theme/breakpoints.ts`)。
     `expo install --check` が走る。exact ピン(RN / react / reanimated …)は Renovate の対象外なので、
     その期待が動くとこの PR が赤くなる → `npx expo install --fix` を足してからマージ。SDK ラインの移動も同じコマンドで手動
   - sqlc の更新 PR は CI の乖離チェックで赤くなる前提 → `mise run sqlc` の再生成コミットを足す
+  - eslint 10(PR #21)は eslint-config-expo 配下の eslint-plugin-react / eslint-plugin-import が未対応なので
+    `@eslint/compat` の `fixupConfigRules` で削除 API を補って通している。両プラグインの ^10 対応版に
+    eslint-config-expo が追従したら外す(前提は mobile/eslint.config.js のコメント)
   - postgres の major は止めている(ADR 001 を書き直してから手で)
   - 設定を変えたら `mise run renovate-dry-run`(Node 24 を一時使用。PR は作らない)で提案内容を先に見る
 
