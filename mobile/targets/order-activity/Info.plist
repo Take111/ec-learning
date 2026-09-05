@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- WidgetKit 拡張としての宣言。@bacons/apple-targets が無ければ同内容を生成するが、
+	     生成先がこのソースディレクトリなので、差分が出ないよう明示的に置いておく。
+	     NSSupportsLiveActivities は拡張ではなく本体アプリ側(app.json の ios.infoPlist)に置く -->
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.widgetkit-extension</string>
+	</dict>
+</dict>
+</plist>

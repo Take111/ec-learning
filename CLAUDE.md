@@ -119,6 +119,14 @@ RN は watchOS で動かないため、Watch は SwiftUI ネイティブ実装(`
 `@bacons/apple-targets` で prebuild 時に Xcode ターゲットとして注入し CNG を維持。
 データは Watch から API を直接取得(一覧は先頭1ページのみ)。判断の詳細は ADR 008。
 
+## 注文の Live Activity(2026-09-04・iOS のみ)
+
+注文確定直後にロック画面 + Dynamic Island で注文状況を表示。UI は `mobile/targets/order-activity/`
+(`@bacons/apple-targets` の widget ターゲット・SwiftUI)、JS からの開始・更新・終了は
+`mobile/modules/order-live-activity/`(ローカル Expo Module)。サーバーに進捗が無いため
+進行は `mobile/src/live-activity/` のクライアント側疑似(デモ規模)で、バックグラウンド中は進まない
+(正道は APNs push — 残課題)。判断の詳細は ADR 009。
+
 ## Web 対応(2026-09-04・PR #5)
 
 同じ RN コードベースを react-native-web で動かす。ヘッダーナビ(`site-header.web.tsx`)・

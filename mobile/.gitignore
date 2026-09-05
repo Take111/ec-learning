@@ -45,4 +45,4 @@ example
 /android
 
 # @bacons/apple-targets が prebuild のたびに expo-target.config.js から再生成する生成物
-targets/watch/Assets.xcassets/
+targets/*/Assets.xcassets/

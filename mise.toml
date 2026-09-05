@@ -96,6 +96,14 @@ description = "ネイティブプロジェクトを生成(CNG: ios/android は�
 dir = "mobile"
 run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild'
 
+[tasks.mobile-prebuild-clean]
+description = "ios/ と android/ を消してから prebuild し直す(targets/ や modules/ を追加・改名したときの確実なリセット)"
+dir = "mobile"
+# 前提: 通常の prebuild は既存の生成物に差分適用する。Xcode ターゲット(targets/*)やローカル Expo Module(modules/*)を
+# 足した直後に古い pbxproj / Pods との食い違いで説明のつかない失敗が出ることがあり、そのときは作り直すのが確実。
+# --clean は Xcode 上の手変更も消す(CNG の前提どおり。手変更は残さない)
+run = 'PATH="$EC_TOOL_PATH:$PATH" pnpm run prebuild:clean'
+
 [tasks.mobile-ios]
 description = "iOS をローカルビルドしてシミュレータで起動(development build。追加引数は expo run:ios へ: mise run mobile-ios -- --no-bundler)"
 dir = "mobile"
