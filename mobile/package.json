@@ -34,7 +34,7 @@
     "agent-device": "0.20.10",
     "eslint": "^10.9.1",
     "eslint-config-expo": "~57.0.2",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   },
   "scripts": {
     "start": "expo start",
