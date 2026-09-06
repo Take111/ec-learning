@@ -1,0 +1,14 @@
+# pnpm の設定ファイル(ワークスペースは組んでいない。pnpm 10 以降、package.json の "pnpm" フィールドではなく
+# このファイルに設定を書く)。
+#
+# allowBuilds: 依存パッケージの install スクリプト(postinstall 等)を走らせるかの明示。
+# pnpm 12 から、ビルドスクリプトを持つ依存を許可も拒否も宣言していないと ERR_PNPM_IGNORED_BUILDS で
+# インストール自体が失敗する(pnpm 10 では警告どまりだった)。「規律ではなく仕組みで止める」方向の変更。
+#
+# unrs-resolver: eslint-config-expo → eslint-plugin-import → eslint-import-resolver-typescript が使う
+# ネイティブのモジュール解決器。postinstall は「プラットフォーム別のプリビルドバイナリが optionalDependencies で
+# 入らなかったときの保険」で、Linux / macOS ではバイナリが先に入るので実行不要。pnpm 10 時代からスクリプトは
+# 無視されたまま lint が通っていたので、その挙動を明示的に固定する。
+# 前提が変わる場合: プリビルドが提供されないプラットフォームで lint を回す必要が出たら true にする。
+allowBuilds:
+  unrs-resolver: false
