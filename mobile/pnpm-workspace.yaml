@@ -1,0 +1,4 @@
+# pnpm 12 は install スクリプトを持つ依存の許可/拒否が未宣言だと ERR_PNPM_IGNORED_BUILDS で失敗する。
+# unrs-resolver の postinstall はプリビルドバイナリ欠落時の保険で、Linux / macOS では不要 → 拒否で固定。
+allowBuilds:
+  unrs-resolver: false
