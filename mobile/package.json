@@ -30,9 +30,9 @@
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.1",
-    "@types/react": "~19.2.18",
-    "agent-device": "0.20.10",
-    "eslint": "^10.9.1",
+    "@types/react": "~19.3.0",
+    "agent-device": "0.21.0",
+    "eslint": "^10.10.0",
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
   },
