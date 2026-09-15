@@ -74,7 +74,7 @@ ci.yml では「シークレットを追加する日が来たら SHA ピン + De
   で決めた(+ `expo` 本体)。`typescript` / `@tanstack/react-query` / `zustand` / `eslint` /
   `agent-device` は非管理。**`@types/react` は当初この非管理側に置いたが誤りだった**
   ——`bundledNativeModules.json` には載らないが `expo install --check` は版を検証しており、
-  PR #28(19.2→19.3 の minor 更新)で main が drift した。以後は SDK 連動グループに含める
+  PR #29 の minor 更新(19.2→19.3)で main が drift し、PR #28 の `expo install --check` で判明した。以後は SDK 連動グループに含める
 - 設定後の再 dry-run で検証済み: exact ピン 5 件は lookup 段階で `disabled`、screens / safe-area /
   gesture-handler の minor・major は packageRules 適用後の一覧(28 件)から消え、SDK 連動で残るのは
   `~` レンジの patch(`~57.0.15 → ~57.0.16` 等)のみ。mise の go は `1.25 → 1.27` と精度を保った
