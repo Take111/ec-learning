@@ -75,14 +75,20 @@
     //      上げるときは ADR を書き直してから手で行う。docker の digest ピンもしない(18-alpine を浮かせておく)
     { "matchDatasources": ["docker"], "matchDepNames": ["postgres"], "matchUpdateTypes": ["major"], "enabled": false },
 
-    // ---- Expo SDK 連動パッケージ(expo 本体 + node_modules/expo/bundledNativeModules.json に載る集合)
+    // ---- Expo SDK 連動パッケージ(expo 本体 + node_modules/expo/bundledNativeModules.json に載る集合 +
+    //      `expo install --check` が検証する「関連パッケージ」の集合。bundledNativeModules.json だけでは
+    //      この集合を汲み取れないと PR #28 で判明した: @types/react の 19.2→19.3 は semver 上 minor だが
+    //      SDK 57 の期待(~19.2.4)の外。このグループに入っていなかったため「mobile non-major」側で
+    //      素通りし(PR #29)、main が expo install --check の期待からドリフトした。→ @types/react も
+    //      この3ルールに追加(bundledNativeModules.json に載らない版でも `expo install --check` が
+    //      見るものはここに入れる)
     //      前提: Renovate は Expo SDK の互換表を知らない。SDK ラインの移動は `npx expo install --fix` で
     //      SDK 単位に人が行い、Renovate は「~ レンジ内の patch」だけを提案する。
     //      検証は CI 側: ブランチ名 renovate/expo-sdk のときだけ `expo install --check` が走り、SDK の期待と
     //      ずれた版が混ざった PR は赤くなる(規律ではなく仕組みで止める)
     {
       "matchFileNames": ["mobile/package.json"],
-      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo"],
+      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo", "@types/react"],
       "groupName": "expo-sdk",
       "groupSlug": "expo-sdk", // → ブランチ名 renovate/expo-sdk(ci.yml の if 条件と対応)
       "addLabels": ["expo-sdk"],
@@ -91,7 +97,7 @@
     // safe-area-context ~5.7→~5.9 は semver 上 minor だが、いずれも SDK 57 の期待の外だった
     {
       "matchFileNames": ["mobile/package.json"],
-      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo"],
+      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo", "@types/react"],
       "matchUpdateTypes": ["minor", "major"],
       "enabled": false,
     },
@@ -99,7 +105,7 @@
     // 決めている(bundledNativeModules.json も exact)。patch でも Renovate は触らず、expo install --fix に任せる
     {
       "matchFileNames": ["mobile/package.json"],
-      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo"],
+      "matchPackageNames": ["expo", "/^expo-/", "/^@expo\\//", "react", "react-dom", "/^react-native/", "eslint-config-expo", "@types/react"],
       "matchCurrentValue": "/^[0-9]/",
       "enabled": false,
     },
