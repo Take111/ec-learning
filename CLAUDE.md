@@ -151,6 +151,8 @@ md=768 / lg=1024 の2段のみ(`src/theme/breakpoints.ts`)。
   - Expo SDK 連動パッケージは patch のみ・1グループ(`renovate/expo-sdk`)。そのブランチだけ CI で
     `expo install --check` が走る。exact ピン(RN / react / reanimated …)は Renovate の対象外なので、
     その期待が動くとこの PR が赤くなる → `npx expo install --fix` を足してからマージ。SDK ラインの移動も同じコマンドで手動
+    - `@types/react` もこのグループに入っている(bundledNativeModules.json には載らないが `expo install --check`
+      が版を検証する対象。PR #28 で drift が起きて判明 — 詳細は renovate.json5 のコメント)
   - sqlc の更新 PR は CI の乖離チェックで赤くなる前提 → `mise run sqlc` の再生成コミットを足す
   - eslint 10(PR #21)は eslint-config-expo 配下の eslint-plugin-react / eslint-plugin-import が未対応なので
     `@eslint/compat` の `fixupConfigRules` で削除 API を補って通している。両プラグインの ^10 対応版に
