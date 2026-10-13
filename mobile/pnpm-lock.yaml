@@ -88,8 +88,8 @@ importers:
         specifier: ~19.2.4
         version: 19.2.18
       agent-device:
-        specifier: 0.21.20
-        version: 0.21.20
+        specifier: 0.21.24
+        version: 0.21.24
       eslint:
         specifier: ^10.12.0
         version: 10.12.0(supports-color@8.1.1)
@@ -1465,8 +1465,8 @@ packages:
     engines: {node: '>=18.18'}
     hasBin: true
 
-  agent-device@0.21.20:
-    resolution: {integrity: sha512-nD2QNRTbQo3mMEnpOTqgguIreY98lri+VfWBo0Njzc+CLBrISHApUJD2Cs2P8zfzvZCvbGibX1D+LP/B/qeQrQ==}
+  agent-device@0.21.24:
+    resolution: {integrity: sha512-AZ7I+JcH92TRnVbWU37A6v4+8t+15NVS5ADgwUYBAbD+IUZj7yNG8Z2HdO/FNfHWZiMmYL7/zF0j6yZuqAXVDA==}
     engines: {node: '>=22.12'}
     hasBin: true
     peerDependencies:
@@ -5738,7 +5738,7 @@ snapshots:
 
   agent-cli-detector@0.1.7: {}
 
-  agent-device@0.21.20: {}
+  agent-device@0.21.24: {}
 
   ajv@6.15.0:
     dependencies:
